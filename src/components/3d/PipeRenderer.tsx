@@ -1,0 +1,105 @@
+import React from 'react'
+import { Vector3 } from 'three'
+import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { StraightPipe } from './StraightPipe'
+import { ElbowPipe } from './ElbowPipe'
+import { TeePipe } from './TeePipe'
+import { Valve } from './Valve'
+import { Flange } from './Flange'
+import { Reducer } from './Reducer'
+
+export const PipeRenderer: React.FC = () => {
+  const components = useConfiguratorStore((state) => state.components)
+  const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
+
+  return (
+    <group>
+      {components.map((component) => {
+        const position: [number, number, number] = [
+          component.position.x,
+          component.position.y,
+          component.position.z,
+        ]
+        const rotation: [number, number, number] = [
+          component.rotation.x,
+          component.rotation.y,
+          component.rotation.z,
+        ]
+        const selected = component.id === selectedComponent
+
+        switch (component.type) {
+          case 'straight':
+            return (
+              <StraightPipe
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                length={component.length || 1000}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          case 'elbow':
+            return (
+              <ElbowPipe
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                angle={component.angle || 90}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          case 'tee':
+            return (
+              <TeePipe
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          case 'valve':
+            return (
+              <Valve
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          case 'flange':
+            return (
+              <Flange
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          case 'reducer':
+            return (
+              <Reducer
+                key={component.id}
+                id={component.id}
+                diameter={component.diameter}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+              />
+            )
+          default:
+            return null
+        }
+      })}
+    </group>
+  )
+}
