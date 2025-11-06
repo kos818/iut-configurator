@@ -12,13 +12,23 @@ Ein moderner 3D-Konfigurator für Anlagenbauer zur visuellen Planung von Rohrlei
   - Absperrventile
   - Flansche
   - Reduzierstücke
-- **Echtzeit-Preiskalkulation**: Automatische Berechnung basierend auf Komponenten und Dimensionen
+- **Material-Auswahl**:
+  - Stahl (×1.0)
+  - Edelstahl (×2.5)
+  - Kupfer (×3.0)
+  - PVC (×0.4)
+  - Material-basierte 3D-Visualisierung mit unterschiedlichen Farben und Eigenschaften
+- **Echtzeit-Preiskalkulation**: Automatische Berechnung basierend auf Komponenten, Dimensionen und Material
+- **Undo/Redo**:
+  - Vollständige History-Verwaltung
+  - Tastaturkürzel: Strg+Z (Rückgängig), Strg+Y (Wiederherstellen)
 - **AutoCAD Export**: DXF-Export für weitere Planung in CAD-Programmen
 - **Projekt-Verwaltung**: Speichern und Laden von Projekten als JSON
 - **Intuitive Bedienung**:
   - Drag & Drop Kamerasteuerung
   - Click-to-select Komponenten
   - Echtzeit-Eigenschafts-Editor
+  - Keyboard Shortcuts
 
 ## Installation
 
@@ -38,19 +48,27 @@ npm run build
 1. **Komponente hinzufügen**: Klicken Sie auf eine Komponente in der linken Sidebar
 2. **Komponente auswählen**: Klicken Sie auf ein Objekt in der 3D-Ansicht
 3. **Eigenschaften bearbeiten**: Nutzen Sie das Properties-Panel zum Anpassen von:
+   - Material (Stahl, Edelstahl, Kupfer, PVC)
    - Durchmesser
    - Länge (bei geraden Rohren)
    - Position (X, Y, Z)
    - Rotation (in Grad)
-4. **Export**:
+4. **Undo/Redo**: Verwenden Sie Strg+Z und Strg+Y oder die Buttons in der Toolbar
+5. **Export**:
    - DXF-Export für AutoCAD
    - JSON-Export zum Speichern des Projekts
 
-## Kamera-Steuerung
+## Steuerung
 
+### Kamera
 - **Orbit**: Rechte Maustaste + Ziehen
 - **Zoom**: Mausrad
 - **Pan**: Mittlere Maustaste + Ziehen (optional)
+
+### Tastaturkürzel
+- **Strg+Z**: Rückgängig
+- **Strg+Y**: Wiederherstellen
+- **Strg+Shift+Z**: Wiederherstellen (Alternative)
 
 ## Technologie-Stack
 
@@ -85,8 +103,11 @@ src/
 │   └── useConfiguratorStore.ts  # Zustand Store
 ├── data/
 │   └── componentTemplates.ts    # Komponenten-Vorlagen
+├── hooks/
+│   └── useKeyboardShortcuts.ts  # Keyboard Shortcuts
 ├── utils/
-│   └── dxfExporter.ts           # DXF Export
+│   ├── dxfExporter.ts           # DXF Export
+│   └── materialColors.ts        # Material-Farben
 ├── types.ts                      # TypeScript Typen
 ├── App.tsx                       # Haupt-App
 └── main.tsx                      # Entry Point
@@ -98,20 +119,37 @@ Die Preise werden automatisch berechnet basierend auf:
 - Basis-Preis der Komponente
 - Durchmesser
 - Länge (bei geraden Rohren)
-- Material-Multiplikatoren (optional)
+- Material-Multiplikator:
+  - Stahl: ×1.0
+  - Edelstahl: ×2.5
+  - Kupfer: ×3.0
+  - PVC: ×0.4
 
 Beispiel:
-- Gerades Rohr 50mm, 1000mm Länge: 15,00 € Basis + (0,02 €/mm × 1000mm) = 35,00 €
+- Gerades Rohr 50mm, 1000mm Länge, Stahl: (15,00 € + 0,02 €/mm × 1000mm) × 1.0 = 35,00 €
+- Gleiches Rohr aus Edelstahl: (15,00 € + 20,00 €) × 2.5 = 87,50 €
 
-## Zukünftige Erweiterungen
+## Implementierte Features ✅
 
+- [x] 3D-Visualisierung mit Three.js
+- [x] Komponenten-Bibliothek (6 Typen)
+- [x] Material-Auswahl (Stahl, Edelstahl, Kupfer, PVC)
+- [x] Echtzeit-Preiskalkulation mit Material-Multiplikatoren
+- [x] Undo/Redo Funktionalität
+- [x] Keyboard Shortcuts
+- [x] DXF-Export für AutoCAD
+- [x] JSON-Export zum Speichern
+- [x] Material-basierte 3D-Visualisierung
+
+## Geplante Erweiterungen
+
+- [ ] PDF-Export mit Stückliste und technischer Zeichnung
 - [ ] 3D-Kollisionserkennung
-- [ ] Automatische Rohrverbindungen
-- [ ] Material-Auswahl (Stahl, Edelstahl, Kupfer, PVC)
-- [ ] PDF-Export mit Stückliste
+- [ ] Automatische Rohrverbindungen (Snap-to-Connect)
+- [ ] Verbindungspunkte-Visualisierung
 - [ ] Mehrere Projekte parallel verwalten
-- [ ] Undo/Redo Funktionalität
 - [ ] Import von DXF-Dateien
+- [ ] Foto-realistische Rendering-Option
 
 ## Lizenz
 
