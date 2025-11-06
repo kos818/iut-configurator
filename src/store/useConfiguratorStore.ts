@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { Vector3 } from 'three'
 import { PipeComponent, ComponentTemplate } from '../types'
 import { materialMultipliers, componentTemplates } from '../data/componentTemplates'
+import { generateConnectionPoints } from '../utils/connectionHelpers'
 
 // Helper function to calculate component price
 const calculateComponentPrice = (component: Partial<PipeComponent>, template?: ComponentTemplate): number => {
@@ -49,7 +50,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       type: template.type,
       position: position || new Vector3(0, 0, 0),
       rotation: new Vector3(0, 0, 0),
-      diameter: template.defaultDiameter,
+      dn: template.defaultDN,
       length: template.defaultLength,
       angle: template.defaultAngle,
       price: calculateComponentPrice({
@@ -58,7 +59,13 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         material: template.material
       }, template),
       material: template.material,
+      connectionPoints: [], // will be generated below
+      isValid: true,
+      validationMessages: [],
     }
+
+    // Generate connection points
+    newComponent.connectionPoints = generateConnectionPoints(newComponent)
 
     const newComponents = [...get().components, newComponent]
 
@@ -87,9 +94,13 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     const newComponents = get().components.map((c) => {
       if (c.id === id) {
         const updated = { ...c, ...updates }
-        // Recalculate price if material, diameter, or length changed
-        if (updates.material || updates.diameter || updates.length) {
+        // Recalculate price if material, dn, or length changed
+        if (updates.material || updates.dn || updates.length) {
           updated.price = calculateComponentPrice(updated)
+        }
+        // Regenerate connection points if dn or length changed
+        if (updates.dn || updates.length) {
+          updated.connectionPoints = generateConnectionPoints(updated)
         }
         return updated
       }

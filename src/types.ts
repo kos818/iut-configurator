@@ -1,36 +1,83 @@
 import { Vector3 } from 'three'
 
 export type PipeComponentType = 'straight' | 'elbow' | 'tee' | 'valve' | 'flange' | 'reducer'
+export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
+
+// DN (Diameter Nominal) values
+export type DNValue = 20 | 25 | 32 | 40 | 50 | 65 | 80 | 100 | 125 | 150
+
+// Connection point on a component
+export interface ConnectionPoint {
+  id: string
+  componentId: string
+  type: 'inlet' | 'outlet' | 'branch' // branch for T-pieces
+  position: Vector3 // relative to component
+  direction: Vector3 // normal vector showing connection direction
+  dn: DNValue
+  connectedTo: string | null // ID of connected connection point
+}
+
+// Connection between two components
+export interface Connection {
+  id: string
+  from: string // connection point ID
+  to: string // connection point ID
+  isValid: boolean // DN compatibility check
+  validationMessage?: string
+}
 
 export interface PipeComponent {
   id: string
   type: PipeComponentType
   position: Vector3
   rotation: Vector3
-  diameter: number // in mm
+  dn: DNValue // Changed from diameter
   length?: number // in mm (for straight pipes)
   angle?: number // in degrees (for elbows)
   price: number // in EUR
-  material: 'steel' | 'stainless' | 'copper' | 'pvc'
+  material: MaterialType
+  connectionPoints: ConnectionPoint[]
+  isValid: boolean // overall validation status
+  validationMessages: string[]
 }
 
 export interface ComponentTemplate {
   type: PipeComponentType
   name: string
   description: string
-  defaultDiameter: number
+  defaultDN: DNValue
   defaultLength?: number
   defaultAngle?: number
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length
-  availableDiameters: number[]
-  material: 'steel' | 'stainless' | 'copper' | 'pvc'
+  availableDNs: DNValue[]
+  material: MaterialType
+  // Define connection points (relative positions will be calculated based on DN)
+  connectionPointTypes: Array<'inlet' | 'outlet' | 'branch'>
 }
 
 export interface ProjectData {
   components: PipeComponent[]
+  connections: Connection[]
   totalPrice: number
   name: string
   createdAt: string
   updatedAt: string
 }
+
+// DN to actual diameter mapping (approximate, in mm)
+export const DN_TO_MM: Record<DNValue, number> = {
+  20: 20,
+  25: 25,
+  32: 32,
+  40: 40,
+  50: 50,
+  65: 65,
+  80: 80,
+  100: 100,
+  125: 125,
+  150: 150,
+}
+
+// Snap distance for auto-connect (in meters in 3D space)
+export const SNAP_DISTANCE = 0.15

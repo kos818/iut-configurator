@@ -147,7 +147,7 @@ ${y.toFixed(3)}
 30
 ${z.toFixed(3)}
 40
-${(component.diameter / 2).toFixed(3)}
+${(component.dn / 2).toFixed(3)}
 0
 TEXT
 8
@@ -155,11 +155,11 @@ ${layer}
 10
 ${x.toFixed(3)}
 20
-${(y + component.diameter).toFixed(3)}
+${(y + component.dn).toFixed(3)}
 30
 ${z.toFixed(3)}
 40
-${(component.diameter * 0.3).toFixed(3)}
+${(component.dn * 0.3).toFixed(3)}
 1
 ${component.type.toUpperCase()}
 `
@@ -171,15 +171,15 @@ TEXT
 8
 ${layer}
 10
-${(x + component.diameter).toFixed(3)}
+${(x + component.dn).toFixed(3)}
 20
 ${y.toFixed(3)}
 30
 ${z.toFixed(3)}
 40
-${(component.diameter * 0.2).toFixed(3)}
+${(component.dn * 0.2).toFixed(3)}
 1
-D${component.diameter}
+DN${component.dn}
 `
   })
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { DN_TO_MM } from '../../types'
 import { StraightPipe } from './StraightPipe'
 import { ElbowPipe } from './ElbowPipe'
 import { TeePipe } from './TeePipe'
@@ -32,7 +33,7 @@ export const PipeRenderer: React.FC = () => {
               <StraightPipe
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 length={component.length || 1000}
                 position={position}
                 rotation={rotation}
@@ -45,7 +46,7 @@ export const PipeRenderer: React.FC = () => {
               <ElbowPipe
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 angle={component.angle || 90}
                 position={position}
                 rotation={rotation}
@@ -58,7 +59,7 @@ export const PipeRenderer: React.FC = () => {
               <TeePipe
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 position={position}
                 rotation={rotation}
                 selected={selected}
@@ -70,7 +71,7 @@ export const PipeRenderer: React.FC = () => {
               <Valve
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 position={position}
                 rotation={rotation}
                 selected={selected}
@@ -82,7 +83,7 @@ export const PipeRenderer: React.FC = () => {
               <Flange
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 position={position}
                 rotation={rotation}
                 selected={selected}
@@ -94,7 +95,7 @@ export const PipeRenderer: React.FC = () => {
               <Reducer
                 key={component.id}
                 id={component.id}
-                diameter={component.diameter}
+                diameter={DN_TO_MM[component.dn]}
                 position={position}
                 rotation={rotation}
                 selected={selected}

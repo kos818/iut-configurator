@@ -23,8 +23,8 @@ export const PropertiesPanel: React.FC = () => {
     (t) => t.type === selectedComponent.type
   )
 
-  const handleDiameterChange = (newDiameter: number) => {
-    updateComponent(selectedComponent.id, { diameter: newDiameter })
+  const handleDNChange = (newDN: number) => {
+    updateComponent(selectedComponent.id, { dn: newDN as any })
   }
 
   const handleLengthChange = (newLength: number) => {
@@ -75,16 +75,16 @@ export const PropertiesPanel: React.FC = () => {
 
         <div>
           <label className="text-gray-300 text-sm block mb-1">
-            Durchmesser (mm)
+            Nenndurchmesser (DN)
           </label>
           <select
-            value={selectedComponent.diameter}
-            onChange={(e) => handleDiameterChange(Number(e.target.value))}
+            value={selectedComponent.dn}
+            onChange={(e) => handleDNChange(Number(e.target.value))}
             className="w-full bg-gray-700 text-white px-3 py-2 rounded"
           >
-            {template?.availableDiameters.map((d) => (
-              <option key={d} value={d}>
-                {d} mm
+            {template?.availableDNs.map((dn) => (
+              <option key={dn} value={dn}>
+                DN{dn}
               </option>
             ))}
           </select>
