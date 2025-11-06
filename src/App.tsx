@@ -1,11 +1,13 @@
-import React from 'react'
 import { Scene3D } from './components/3d/Scene3D'
 import { ComponentSelector } from './components/ui/ComponentSelector'
 import { PropertiesPanel } from './components/ui/PropertiesPanel'
 import { PriceDisplay } from './components/ui/PriceDisplay'
 import { Toolbar } from './components/ui/Toolbar'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 function App() {
+  useKeyboardShortcuts()
+
   return (
     <div className="w-full h-full flex flex-col bg-gray-900">
       {/* Header */}
@@ -40,11 +42,12 @@ function App() {
             <ul className="text-gray-300 text-sm space-y-2">
               <li>• Komponente links auswählen zum Hinzufügen</li>
               <li>• Auf Komponente klicken zum Auswählen</li>
-              <li>• Eigenschaften rechts bearbeiten</li>
+              <li>• Material & Eigenschaften bearbeiten</li>
               <li>• Kamera mit rechter Maustaste drehen</li>
               <li>• Mausrad zum Zoomen</li>
+              <li>• <span className="font-semibold">Strg+Z</span> = Rückgängig</li>
+              <li>• <span className="font-semibold">Strg+Y</span> = Wiederherstellen</li>
               <li>• DXF Export für AutoCAD</li>
-              <li>• Preis wird automatisch berechnet</li>
             </ul>
           </div>
         </aside>

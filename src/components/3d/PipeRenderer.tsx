@@ -1,5 +1,4 @@
 import React from 'react'
-import { Vector3 } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { StraightPipe } from './StraightPipe'
 import { ElbowPipe } from './ElbowPipe'
@@ -38,6 +37,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           case 'elbow':
@@ -50,6 +50,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           case 'tee':
@@ -61,6 +62,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           case 'valve':
@@ -72,6 +74,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           case 'flange':
@@ -83,6 +86,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           case 'reducer':
@@ -94,6 +98,7 @@ export const PipeRenderer: React.FC = () => {
                 position={position}
                 rotation={rotation}
                 selected={selected}
+                material={component.material}
               />
             )
           default:

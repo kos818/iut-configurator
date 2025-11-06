@@ -1,6 +1,6 @@
 import React from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { componentTemplates } from '../../data/componentTemplates'
+import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -29,14 +29,12 @@ export const PropertiesPanel: React.FC = () => {
 
   const handleLengthChange = (newLength: number) => {
     if (selectedComponent.type === 'straight') {
-      const basePrice = template?.basePrice || 0
-      const pricePerMM = template?.pricePerMM || 0
-      const newPrice = basePrice + pricePerMM * newLength
-      updateComponent(selectedComponent.id, {
-        length: newLength,
-        price: newPrice,
-      })
+      updateComponent(selectedComponent.id, { length: newLength })
     }
+  }
+
+  const handleMaterialChange = (newMaterial: 'steel' | 'stainless' | 'copper' | 'pvc') => {
+    updateComponent(selectedComponent.id, { material: newMaterial })
   }
 
   const handlePositionChange = (axis: 'x' | 'y' | 'z', value: number) => {
@@ -59,6 +57,20 @@ export const PropertiesPanel: React.FC = () => {
         <div>
           <label className="text-gray-300 text-sm">Typ</label>
           <div className="text-white font-semibold">{template?.name}</div>
+        </div>
+
+        <div>
+          <label className="text-gray-300 text-sm block mb-1">Material</label>
+          <select
+            value={selectedComponent.material}
+            onChange={(e) => handleMaterialChange(e.target.value as any)}
+            className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+          >
+            <option value="steel">Stahl (×{materialMultipliers.steel})</option>
+            <option value="stainless">Edelstahl (×{materialMultipliers.stainless})</option>
+            <option value="copper">Kupfer (×{materialMultipliers.copper})</option>
+            <option value="pvc">PVC (×{materialMultipliers.pvc})</option>
+          </select>
         </div>
 
         <div>

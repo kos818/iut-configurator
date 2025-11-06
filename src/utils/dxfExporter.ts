@@ -112,7 +112,6 @@ ENTITIES
       // Draw as 3D line/polyline
       const length = component.length
       const rotX = component.rotation.x
-      const rotY = component.rotation.y
       const rotZ = component.rotation.z
 
       // Calculate end point (simplified - assumes vertical pipe)

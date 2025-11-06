@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
 
 interface TeePipeProps {
   id: string
@@ -8,6 +9,7 @@ interface TeePipeProps {
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
+  material: string
 }
 
 export const TeePipe: React.FC<TeePipeProps> = ({
@@ -16,12 +18,17 @@ export const TeePipe: React.FC<TeePipeProps> = ({
   position,
   rotation,
   selected,
+  material,
 }) => {
   const meshRef = useRef<Mesh>(null)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
 
   const outerRadius = (diameter / 2) / 1000
   const length = outerRadius * 4
+
+  const color = getMaterialColor(material, selected)
+  const metalness = getMaterialMetalness(material)
+  const roughness = getMaterialRoughness(material)
 
   return (
     <group position={position} rotation={rotation}>
@@ -34,31 +41,19 @@ export const TeePipe: React.FC<TeePipeProps> = ({
       >
         {/* Main horizontal pipe */}
         <cylinderGeometry args={[outerRadius, outerRadius, length, 16]} />
-        <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#78909C'}
-          metalness={0.8}
-          roughness={0.2}
-        />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
       {/* Vertical branch */}
       <mesh rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[outerRadius, outerRadius, length / 2, 16]} />
-        <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#78909C'}
-          metalness={0.8}
-          roughness={0.2}
-        />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
       {/* Center junction sphere */}
       <mesh>
         <sphereGeometry args={[outerRadius * 1.3, 16, 16]} />
-        <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#78909C'}
-          metalness={0.8}
-          roughness={0.2}
-        />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
     </group>
   )

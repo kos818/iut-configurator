@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
 
 interface FlangeProps {
   id: string
@@ -8,6 +9,7 @@ interface FlangeProps {
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
+  material: string
 }
 
 export const Flange: React.FC<FlangeProps> = ({
@@ -16,6 +18,7 @@ export const Flange: React.FC<FlangeProps> = ({
   position,
   rotation,
   selected,
+  material,
 }) => {
   const meshRef = useRef<Mesh>(null)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
@@ -23,6 +26,10 @@ export const Flange: React.FC<FlangeProps> = ({
   const outerRadius = (diameter / 2) / 1000
   const flangeRadius = outerRadius * 2
   const flangeThickness = outerRadius * 0.3
+
+  const color = getMaterialColor(material, selected)
+  const metalness = getMaterialMetalness(material)
+  const roughness = getMaterialRoughness(material)
 
   return (
     <group position={position} rotation={rotation}>
@@ -35,11 +42,7 @@ export const Flange: React.FC<FlangeProps> = ({
         }}
       >
         <cylinderGeometry args={[flangeRadius, flangeRadius, flangeThickness, 32]} />
-        <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#607D8B'}
-          metalness={0.8}
-          roughness={0.3}
-        />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
       {/* Bolt holes (8 around the flange) */}

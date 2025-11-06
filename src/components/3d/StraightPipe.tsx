@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
 
 interface StraightPipeProps {
   id: string
@@ -9,6 +10,7 @@ interface StraightPipeProps {
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
+  material: string
 }
 
 export const StraightPipe: React.FC<StraightPipeProps> = ({
@@ -18,6 +20,7 @@ export const StraightPipe: React.FC<StraightPipeProps> = ({
   position,
   rotation,
   selected,
+  material,
 }) => {
   const meshRef = useRef<Mesh>(null)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
@@ -37,9 +40,9 @@ export const StraightPipe: React.FC<StraightPipeProps> = ({
       >
         <cylinderGeometry args={[outerRadius, outerRadius, pipeLength, 32]} />
         <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#78909C'}
-          metalness={0.8}
-          roughness={0.2}
+          color={getMaterialColor(material, selected)}
+          metalness={getMaterialMetalness(material)}
+          roughness={getMaterialRoughness(material)}
         />
       </mesh>
       {/* Inner hollow part */}

@@ -1,11 +1,26 @@
 import { create } from 'zustand'
 import { Vector3 } from 'three'
 import { PipeComponent, ComponentTemplate } from '../types'
+import { materialMultipliers, componentTemplates } from '../data/componentTemplates'
+
+// Helper function to calculate component price
+const calculateComponentPrice = (component: Partial<PipeComponent>, template?: ComponentTemplate): number => {
+  const tmpl = template || componentTemplates.find(t => t.type === component.type)
+  if (!tmpl) return 0
+
+  const basePrice = tmpl.basePrice
+  const lengthPrice = (tmpl.pricePerMM && component.length) ? tmpl.pricePerMM * component.length : 0
+  const materialMultiplier = materialMultipliers[component.material || 'steel'] || 1.0
+
+  return (basePrice + lengthPrice) * materialMultiplier
+}
 
 interface ConfiguratorState {
   components: PipeComponent[]
   selectedComponent: string | null
   totalPrice: number
+  history: PipeComponent[][]
+  historyIndex: number
 
   // Actions
   addComponent: (template: ComponentTemplate, position?: Vector3) => void
@@ -15,12 +30,18 @@ interface ConfiguratorState {
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => boolean
 }
 
 export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   components: [],
   selectedComponent: null,
   totalPrice: 0,
+  history: [[]],
+  historyIndex: 0,
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
     const newComponent: PipeComponent = {
@@ -31,30 +52,54 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       diameter: template.defaultDiameter,
       length: template.defaultLength,
       angle: template.defaultAngle,
-      price: template.basePrice + (template.pricePerMM && template.defaultLength ? template.pricePerMM * template.defaultLength : 0),
+      price: calculateComponentPrice({
+        type: template.type,
+        length: template.defaultLength,
+        material: template.material
+      }, template),
       material: template.material,
     }
 
+    const newComponents = [...get().components, newComponent]
+
     set((state) => ({
-      components: [...state.components, newComponent],
+      components: newComponents,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
     }))
 
     get().calculateTotalPrice()
   },
 
   removeComponent: (id: string) => {
+    const newComponents = get().components.filter((c) => c.id !== id)
+
     set((state) => ({
-      components: state.components.filter((c) => c.id !== id),
+      components: newComponents,
       selectedComponent: state.selectedComponent === id ? null : state.selectedComponent,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
     }))
     get().calculateTotalPrice()
   },
 
   updateComponent: (id: string, updates: Partial<PipeComponent>) => {
+    const newComponents = get().components.map((c) => {
+      if (c.id === id) {
+        const updated = { ...c, ...updates }
+        // Recalculate price if material, diameter, or length changed
+        if (updates.material || updates.diameter || updates.length) {
+          updated.price = calculateComponentPrice(updated)
+        }
+        return updated
+      }
+      return c
+    })
+
     set((state) => ({
-      components: state.components.map((c) =>
-        c.id === id ? { ...c, ...updates } : c
-      ),
+      components: newComponents,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
     }))
     get().calculateTotalPrice()
   },
@@ -69,11 +114,46 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   },
 
   clearAll: () => {
-    set({
+    set((state) => ({
       components: [],
       selectedComponent: null,
       totalPrice: 0,
-    })
+      history: [...state.history.slice(0, state.historyIndex + 1), []],
+      historyIndex: state.historyIndex + 1,
+    }))
+  },
+
+  undo: () => {
+    const state = get()
+    if (state.historyIndex > 0) {
+      const newIndex = state.historyIndex - 1
+      set({
+        components: state.history[newIndex],
+        historyIndex: newIndex,
+      })
+      get().calculateTotalPrice()
+    }
+  },
+
+  redo: () => {
+    const state = get()
+    if (state.historyIndex < state.history.length - 1) {
+      const newIndex = state.historyIndex + 1
+      set({
+        components: state.history[newIndex],
+        historyIndex: newIndex,
+      })
+      get().calculateTotalPrice()
+    }
+  },
+
+  canUndo: () => {
+    return get().historyIndex > 0
+  },
+
+  canRedo: () => {
+    const state = get()
+    return state.historyIndex < state.history.length - 1
   },
 
   getProjectData: () => {

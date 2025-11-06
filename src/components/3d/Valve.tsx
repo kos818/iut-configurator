@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
 
 interface ValveProps {
   id: string
@@ -8,6 +9,7 @@ interface ValveProps {
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
+  material: string
 }
 
 export const Valve: React.FC<ValveProps> = ({
@@ -16,6 +18,7 @@ export const Valve: React.FC<ValveProps> = ({
   position,
   rotation,
   selected,
+  material,
 }) => {
   const meshRef = useRef<Mesh>(null)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
@@ -23,6 +26,10 @@ export const Valve: React.FC<ValveProps> = ({
   const outerRadius = (diameter / 2) / 1000
   const bodyLength = outerRadius * 3
   const handleHeight = outerRadius * 2
+
+  const color = getMaterialColor(material, selected)
+  const metalness = getMaterialMetalness(material)
+  const roughness = getMaterialRoughness(material)
 
   return (
     <group position={position} rotation={rotation}>
@@ -35,11 +42,7 @@ export const Valve: React.FC<ValveProps> = ({
         }}
       >
         <cylinderGeometry args={[outerRadius * 1.5, outerRadius * 1.5, bodyLength, 16]} />
-        <meshStandardMaterial
-          color={selected ? '#4CAF50' : '#546E7A'}
-          metalness={0.9}
-          roughness={0.1}
-        />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
       {/* Handle */}
