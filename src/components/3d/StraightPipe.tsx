@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
-import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { useDraggable } from '../../hooks/useDraggable'
 
 interface StraightPipeProps {
   id: string
@@ -23,21 +23,15 @@ export const StraightPipe: React.FC<StraightPipeProps> = ({
   material,
 }) => {
   const meshRef = useRef<Mesh>(null)
-  const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000 // convert mm to meters for 3D
   const innerRadius = outerRadius * 0.85
   const pipeLength = length / 1000 // convert mm to meters
 
   return (
-    <group position={position} rotation={rotation}>
-      <mesh
-        ref={meshRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectComponent(id)
-        }}
-      >
+    <group position={position} rotation={rotation} {...dragHandlers}>
+      <mesh ref={meshRef}>
         <cylinderGeometry args={[outerRadius, outerRadius, pipeLength, 32]} />
         <meshStandardMaterial
           color={getMaterialColor(material, selected)}

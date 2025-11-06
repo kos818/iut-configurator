@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
-import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { useDraggable } from '../../hooks/useDraggable'
 
 interface ElbowPipeProps {
   id: string
@@ -23,7 +23,7 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   material,
 }) => {
   const meshRef = useRef<Mesh>(null)
-  const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const bendRadius = outerRadius * 3
@@ -33,15 +33,11 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   const roughness = getMaterialRoughness(material)
 
   return (
-    <group position={position} rotation={rotation}>
+    <group position={position} rotation={rotation} {...dragHandlers}>
       {/* Simplified representation with two pipes at angle */}
       <group>
         <mesh
           ref={meshRef}
-          onClick={(e) => {
-            e.stopPropagation()
-            selectComponent(id)
-          }}
           position={[0, -bendRadius / 2, 0]}
         >
           <cylinderGeometry args={[outerRadius, outerRadius, bendRadius, 16]} />
