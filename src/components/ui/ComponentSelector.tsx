@@ -60,6 +60,7 @@ export const ComponentSelector: React.FC = () => {
           angle: templateWithDN.defaultAngle,
           armLength: templateWithDN.defaultArmLength,
           teeArmLengths: templateWithDN.defaultTeeArmLengths,
+          elbowArmLengths: templateWithDN.defaultElbowArmLengths,
           price: 0,
           material: templateWithDN.material,
           connectionPoints: [],

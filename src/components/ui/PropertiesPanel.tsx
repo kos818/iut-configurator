@@ -242,9 +242,173 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleRotationChange = (axis: 'x' | 'y' | 'z', value: number) => {
+    // Normalize value to 0-360 range
+    let normalizedValue = value % 360
+    if (normalizedValue < 0) normalizedValue += 360
+
     const newRotation = selectedComponent.rotation.clone()
-    newRotation[axis] = (value * Math.PI) / 180 // Convert to radians
+    newRotation[axis] = (normalizedValue * Math.PI) / 180 // Convert to radians
     updateComponent(selectedComponent.id, { rotation: newRotation })
+  }
+
+  const handleElbowArmLengthChange = (arm: 'inlet' | 'outlet', newLength: number) => {
+    if (selectedComponent.type === 'elbow') {
+      const defaultArmLength = (selectedComponent.dn / 2) * 3 // 3x radius as default
+      const currentArmLengths = selectedComponent.elbowArmLengths || {
+        inlet: defaultArmLength,
+        outlet: defaultArmLength
+      }
+
+      const oldLength = currentArmLengths[arm]
+      const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
+
+      // Get elbow angle
+      const angleInDegrees = selectedComponent.angle || 90
+      const angleInRadians = (angleInDegrees * Math.PI) / 180
+
+      // Map arm names to connection point labels and directions
+      const armConfig: Record<'inlet' | 'outlet', { label: string; getDirection: () => Vector3 }> = {
+        inlet: {
+          label: 'A',
+          getDirection: () => new Vector3(0, -1, 0) // inlet always points down
+        },
+        outlet: {
+          label: 'B',
+          getDirection: () => new Vector3(Math.sin(angleInRadians), -Math.cos(angleInRadians), 0) // outlet rotated by angle
+        }
+      }
+
+      const config = armConfig[arm]
+
+      // Find the connection point for this arm
+      const armCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === config.label)
+
+      if (armCP && armCP.connectedTo) {
+        // Calculate the offset in local space
+        const localOffset = config.getDirection().multiplyScalar(lengthDiff)
+
+        // Apply rotation to get world space offset
+        const worldOffset = localOffset.clone()
+        worldOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        // Helper function to move a component and all connected components recursively
+        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
+          if (visitedIds.has(componentId)) return
+          visitedIds.add(componentId)
+
+          const comp = components.find((c) => c.id === componentId)
+          if (!comp) return
+
+          // Move this component
+          const newPos = comp.position.clone().add(offset)
+          updateComponent(componentId, { position: newPos })
+
+          // Recursively move all connected components except the original elbow
+          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
+            if (cp.connectedTo && cp.connectedTo !== armCP.id) {
+              // Find the component that owns this connection point
+              const connectedComp = components.find((c) =>
+                c.connectionPoints.some((p) => p.id === cp.connectedTo)
+              )
+              if (connectedComp && connectedComp.id !== selectedComponent.id) {
+                moveComponentTree(connectedComp.id, offset, visitedIds)
+              }
+            }
+          })
+        }
+
+        // Find the connected component and move it
+        const connectedComp = components.find((c) =>
+          c.connectionPoints.some((cp) => cp.id === armCP.connectedTo)
+        )
+        if (connectedComp) {
+          moveComponentTree(connectedComp.id, worldOffset)
+        }
+      }
+
+      // Update the elbow arm lengths
+      updateComponent(selectedComponent.id, {
+        elbowArmLengths: {
+          ...currentArmLengths,
+          [arm]: newLength
+        }
+      })
+    }
+  }
+
+  const handleElbowAngleChange = (newAngle: number) => {
+    if (selectedComponent.type === 'elbow') {
+      // When angle changes, we need to reposition the outlet-connected component
+      const outletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
+
+      if (outletCP && outletCP.connectedTo) {
+        // Calculate old and new outlet positions
+        const defaultArmLength = (selectedComponent.dn / 2) * 3
+        const outletLength = (selectedComponent.elbowArmLengths?.outlet || defaultArmLength) / 1000
+
+        const oldAngleRad = ((selectedComponent.angle || 90) * Math.PI) / 180
+        const newAngleRad = (newAngle * Math.PI) / 180
+
+        // Old outlet position
+        const oldOutletX = outletLength * Math.sin(oldAngleRad)
+        const oldOutletY = -outletLength * Math.cos(oldAngleRad)
+
+        // New outlet position
+        const newOutletX = outletLength * Math.sin(newAngleRad)
+        const newOutletY = -outletLength * Math.cos(newAngleRad)
+
+        // Calculate the offset in local space
+        const localOffset = new Vector3(newOutletX - oldOutletX, newOutletY - oldOutletY, 0)
+
+        // Apply rotation to get world space offset
+        const worldOffset = localOffset.clone()
+        worldOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        // Helper function to move a component and all connected components recursively
+        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
+          if (visitedIds.has(componentId)) return
+          visitedIds.add(componentId)
+
+          const comp = components.find((c) => c.id === componentId)
+          if (!comp) return
+
+          // Move this component
+          const newPos = comp.position.clone().add(offset)
+          updateComponent(componentId, { position: newPos })
+
+          // Recursively move all connected components except the original elbow
+          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
+            if (cp.connectedTo && cp.connectedTo !== outletCP.id) {
+              const connectedComp = components.find((c) =>
+                c.connectionPoints.some((p) => p.id === cp.connectedTo)
+              )
+              if (connectedComp && connectedComp.id !== selectedComponent.id) {
+                moveComponentTree(connectedComp.id, offset, visitedIds)
+              }
+            }
+          })
+        }
+
+        // Find the connected component and move it
+        const connectedComp = components.find((c) =>
+          c.connectionPoints.some((cp) => cp.id === outletCP.connectedTo)
+        )
+        if (connectedComp) {
+          moveComponentTree(connectedComp.id, worldOffset)
+        }
+      }
+
+      // Update the elbow angle
+      updateComponent(selectedComponent.id, { angle: newAngle })
+    }
   }
 
   const handleConnectionMethodChange = (cpId: string, newMethod: ConnectionMethod) => {
@@ -373,6 +537,56 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
+        {selectedComponent.type === 'elbow' && (
+          <>
+            <div>
+              <label className="text-gray-300 text-sm block mb-2">
+                Winkel (Grad)
+              </label>
+              <input
+                type="number"
+                value={selectedComponent.angle || 90}
+                onChange={(e) => handleElbowAngleChange(Number(e.target.value))}
+                className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                min="15"
+                max="180"
+                step="15"
+              />
+            </div>
+            <div>
+              <label className="text-gray-300 text-sm block mb-2">
+                Schenkellängen (mm)
+              </label>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Eingang (A - unten)</label>
+                  <input
+                    type="number"
+                    value={selectedComponent.elbowArmLengths?.inlet || (selectedComponent.dn / 2) * 3}
+                    onChange={(e) => handleElbowArmLengthChange('inlet', Number(e.target.value))}
+                    className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                    min="50"
+                    max="1000"
+                    step="50"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Ausgang (B - gedreht)</label>
+                  <input
+                    type="number"
+                    value={selectedComponent.elbowArmLengths?.outlet || (selectedComponent.dn / 2) * 3}
+                    onChange={(e) => handleElbowArmLengthChange('outlet', Number(e.target.value))}
+                    className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                    min="50"
+                    max="1000"
+                    step="50"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         <div>
           <label className="text-gray-300 text-sm block mb-2">Position</label>
           <div className="grid grid-cols-3 gap-2">
@@ -398,22 +612,29 @@ export const PropertiesPanel: React.FC = () => {
             Rotation (Grad)
           </label>
           <div className="grid grid-cols-3 gap-2">
-            {(['x', 'y', 'z'] as const).map((axis) => (
-              <div key={axis}>
-                <label className="text-gray-400 text-xs">{axis.toUpperCase()}</label>
-                <input
-                  type="number"
-                  value={Math.round(
-                    (selectedComponent.rotation[axis] * 180) / Math.PI
-                  )}
-                  onChange={(e) =>
-                    handleRotationChange(axis, Number(e.target.value))
-                  }
-                  className="w-full bg-gray-700 text-white px-2 py-1 rounded text-sm"
-                  step="15"
-                />
-              </div>
-            ))}
+            {(['x', 'y', 'z'] as const).map((axis) => {
+              // Normalize rotation to 0-360 range for display
+              let degrees = (selectedComponent.rotation[axis] * 180) / Math.PI
+              degrees = degrees % 360
+              if (degrees < 0) degrees += 360
+
+              return (
+                <div key={axis}>
+                  <label className="text-gray-400 text-xs">{axis.toUpperCase()}</label>
+                  <input
+                    type="number"
+                    value={Math.round(degrees)}
+                    onChange={(e) =>
+                      handleRotationChange(axis, Number(e.target.value))
+                    }
+                    className="w-full bg-gray-700 text-white px-2 py-1 rounded text-sm"
+                    step="15"
+                    min="0"
+                    max="360"
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
 

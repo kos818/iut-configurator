@@ -61,6 +61,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       angle: template.defaultAngle,
       armLength: template.defaultArmLength,
       teeArmLengths: template.defaultTeeArmLengths,
+      elbowArmLengths: template.defaultElbowArmLengths,
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,
@@ -106,8 +107,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         if (updates.material || updates.dn || updates.length) {
           updated.price = calculateComponentPrice(updated)
         }
-        // Regenerate connection points if dn, length, or teeArmLengths changed
-        if (updates.dn || updates.length || updates.teeArmLengths) {
+        // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed
+        if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths || updates.angle !== undefined) {
           // Store existing connection info before regenerating
           const existingConnections = new Map(
             c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])

@@ -7,6 +7,8 @@ interface ElbowPipeProps {
   id: string
   diameter: number
   angle: number
+  inletLength?: number // in mm
+  outletLength?: number // in mm
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
@@ -16,7 +18,9 @@ interface ElbowPipeProps {
 export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   id,
   diameter,
-  angle: _angle,
+  angle,
+  inletLength,
+  outletLength,
   position,
   rotation,
   selected,
@@ -26,38 +30,55 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
-  const bendRadius = outerRadius * 3
+
+  // Use provided lengths or default to 3x radius
+  const defaultLength = ((diameter / 2) * 3) // in mm
+  const inletLengthM = (inletLength || defaultLength) / 1000
+  const outletLengthM = (outletLength || defaultLength) / 1000
+
+  const angleInRadians = (angle * Math.PI) / 180
 
   const color = getMaterialColor(material, selected)
   const metalness = getMaterialMetalness(material)
   const roughness = getMaterialRoughness(material)
 
+  // Calculate outlet arm position and rotation
+  // Outlet direction: inlet rotated by angle around Z-axis
+  const outletDirX = Math.sin(angleInRadians)
+  const outletDirY = -Math.cos(angleInRadians)
+
+  // Outlet arm center position
+  const outletCenterX = (outletLengthM / 2) * outletDirX
+  const outletCenterY = (outletLengthM / 2) * outletDirY
+
+  // Outlet arm rotation (around Z-axis)
+  const outletRotationZ = angleInRadians
+
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
-      {/* Simplified representation with two pipes at angle */}
-      <group>
-        <mesh
-          ref={meshRef}
-          position={[0, -bendRadius / 2, 0]}
-        >
-          <cylinderGeometry args={[outerRadius, outerRadius, bendRadius, 16]} />
-          <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-        </mesh>
+      {/* Inlet arm (pointing down, -Y direction) */}
+      <mesh
+        ref={meshRef}
+        position={[0, -inletLengthM / 2, 0]}
+      >
+        <cylinderGeometry args={[outerRadius, outerRadius, inletLengthM, 16]} />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+      </mesh>
 
-        <mesh
-          position={[bendRadius / 2, 0, 0]}
-          rotation={[0, 0, Math.PI / 2]}
-        >
-          <cylinderGeometry args={[outerRadius, outerRadius, bendRadius, 16]} />
-          <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-        </mesh>
+      {/* Outlet arm (rotated by angle) */}
+      <mesh
+        position={[outletCenterX, outletCenterY, 0]}
+        rotation={[0, 0, Math.PI / 2 - outletRotationZ]}
+      >
+        <cylinderGeometry args={[outerRadius, outerRadius, outletLengthM, 16]} />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+      </mesh>
 
-        {/* Corner sphere */}
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[outerRadius * 1.2, 16, 16]} />
-          <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-        </mesh>
-      </group>
+      {/* Corner junction sphere */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[outerRadius * 1.3, 16, 16]} />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+      </mesh>
     </group>
   )
 }

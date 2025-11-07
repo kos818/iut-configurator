@@ -40,26 +40,51 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     }
 
     case 'elbow': {
-      const bendRadius = radius * 3
-      // Inlet at bottom
+      // Use configurable arm lengths, or defaults based on DN
+      const defaultArmLength = (DN_TO_MM[dn] / 2) * 3 // 3x radius as default
+      const armLengths = component.elbowArmLengths || {
+        inlet: defaultArmLength,
+        outlet: defaultArmLength
+      }
+
+      // Get elbow angle in radians (default 90°)
+      const angleInDegrees = component.angle || 90
+      const angleInRadians = (angleInDegrees * Math.PI) / 180
+
+      // Convert arm lengths to meters
+      const inletLengthM = armLengths.inlet / 1000
+      const outletLengthM = armLengths.outlet / 1000
+
+      // Inlet connection point - pointing down (negative Y)
+      // Position: at the end of the inlet arm
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(0, -bendRadius / 2, 0),
-        direction: new Vector3(0, -1, 0),
+        position: new Vector3(0, -inletLengthM, 0),
+        direction: new Vector3(0, -1, 0), // pointing down
         dn,
         connectedTo: null,
       })
-      // Outlet at side (90 degree bend)
+
+      // Outlet connection point - rotated by the elbow angle
+      // Direction: inlet direction rotated by angle around Z-axis
+      // For angle θ: (0, -1) rotated by θ = (sin(θ), -cos(θ))
+      const outletDirX = Math.sin(angleInRadians)
+      const outletDirY = -Math.cos(angleInRadians)
+
+      // Position: at the end of the outlet arm, in the direction of the bend
+      const outletPosX = outletLengthM * outletDirX
+      const outletPosY = outletLengthM * outletDirY
+
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(bendRadius / 2, 0, 0),
-        direction: new Vector3(1, 0, 0),
+        position: new Vector3(outletPosX, outletPosY, 0),
+        direction: new Vector3(outletDirX, outletDirY, 0), // pointing in bend direction
         dn,
         connectedTo: null,
       })

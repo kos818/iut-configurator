@@ -50,6 +50,8 @@ export const PipeRenderer: React.FC = () => {
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
                 angle={component.angle || 90}
+                inletLength={component.elbowArmLengths?.inlet}
+                outletLength={component.elbowArmLengths?.outlet}
                 position={position}
                 rotation={rotation}
                 selected={selected}

@@ -19,6 +19,7 @@ export const componentTemplates: ComponentTemplate[] = [
     description: 'Rohrbogen mit 90 Grad Winkel',
     defaultDN: 50,
     defaultAngle: 90,
+    defaultElbowArmLengths: { inlet: 150, outlet: 150 }, // Default arm lengths in mm
     basePrice: 25.0,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],
     material: 'steel',
@@ -30,6 +31,7 @@ export const componentTemplates: ComponentTemplate[] = [
     description: 'Rohrbogen mit 45 Grad Winkel',
     defaultDN: 50,
     defaultAngle: 45,
+    defaultElbowArmLengths: { inlet: 150, outlet: 150 }, // Default arm lengths in mm
     basePrice: 22.0,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],
     material: 'steel',

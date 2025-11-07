@@ -38,6 +38,12 @@ export interface TeeArmLengths {
   branch: number  // Arm C (top) in mm
 }
 
+// Elbow arm lengths
+export interface ElbowArmLengths {
+  inlet: number   // Arm A (inlet) in mm
+  outlet: number  // Arm B (outlet) in mm
+}
+
 export interface PipeComponent {
   id: string
   type: PipeComponentType
@@ -48,6 +54,7 @@ export interface PipeComponent {
   angle?: number // in degrees (for elbows)
   armLength?: number // in mm (for tee pieces - deprecated, use teeArmLengths)
   teeArmLengths?: TeeArmLengths // in mm (for tee pieces - individual arm lengths)
+  elbowArmLengths?: ElbowArmLengths // in mm (for elbows - individual arm lengths)
   price: number // in EUR
   material: MaterialType
   connectionPoints: ConnectionPoint[]
@@ -64,6 +71,7 @@ export interface ComponentTemplate {
   defaultAngle?: number
   defaultArmLength?: number // for tee pieces - deprecated, use defaultTeeArmLengths
   defaultTeeArmLengths?: TeeArmLengths // for tee pieces - individual arm lengths
+  defaultElbowArmLengths?: ElbowArmLengths // for elbows - individual arm lengths
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length
   availableDNs: DNValue[]
