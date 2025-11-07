@@ -1,5 +1,6 @@
 import { Scene3D } from './components/3d/Scene3D'
 import { ComponentSelector } from './components/ui/ComponentSelector'
+import { ComponentList } from './components/ui/ComponentList'
 import { PropertiesPanel } from './components/ui/PropertiesPanel'
 import { PriceDisplay } from './components/ui/PriceDisplay'
 import { Toolbar } from './components/ui/Toolbar'
@@ -24,6 +25,7 @@ function App() {
         {/* Left sidebar - Component selector */}
         <aside className="w-80 overflow-y-auto flex flex-col gap-4">
           <ComponentSelector />
+          <ComponentList />
           <PropertiesPanel />
         </aside>
 

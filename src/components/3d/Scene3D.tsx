@@ -65,6 +65,46 @@ export const Scene3D: React.FC = () => {
     }
   }
 
+  const handlePanUp = () => {
+    if (controlsRef.current) {
+      const controls = controlsRef.current
+      const panAmount = 0.5
+      controls.target.y += panAmount
+      controls.object.position.y += panAmount
+      controls.update()
+    }
+  }
+
+  const handlePanDown = () => {
+    if (controlsRef.current) {
+      const controls = controlsRef.current
+      const panAmount = 0.5
+      controls.target.y -= panAmount
+      controls.object.position.y -= panAmount
+      controls.update()
+    }
+  }
+
+  const handlePanLeft = () => {
+    if (controlsRef.current) {
+      const controls = controlsRef.current
+      const panAmount = 0.5
+      controls.target.x -= panAmount
+      controls.object.position.x -= panAmount
+      controls.update()
+    }
+  }
+
+  const handlePanRight = () => {
+    if (controlsRef.current) {
+      const controls = controlsRef.current
+      const panAmount = 0.5
+      controls.target.x += panAmount
+      controls.object.position.x += panAmount
+      controls.update()
+    }
+  }
+
   return (
     <div className="relative w-full h-full">
     <Canvas
@@ -116,11 +156,15 @@ export const Scene3D: React.FC = () => {
       </Suspense>
     </Canvas>
 
-      {/* Zoom Controls */}
+      {/* Zoom & Pan Controls */}
       <ZoomControls
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetView={handleResetView}
+        onPanUp={handlePanUp}
+        onPanDown={handlePanDown}
+        onPanLeft={handlePanLeft}
+        onPanRight={handlePanRight}
       />
     </div>
   )
