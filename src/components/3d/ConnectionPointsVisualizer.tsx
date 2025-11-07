@@ -1,4 +1,5 @@
 import React from 'react'
+import { Text } from '@react-three/drei'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getWorldPosition } from '../../utils/connectionHelpers'
 
@@ -73,6 +74,19 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                   opacity={0.6}
                 />
               </mesh>
+
+              {/* Alphabetic label */}
+              <Text
+                position={[worldPos.x, worldPos.y + 0.08, worldPos.z]}
+                fontSize={0.06}
+                color={color}
+                anchorX="center"
+                anchorY="middle"
+                outlineWidth={0.002}
+                outlineColor="#000000"
+              >
+                {cp.label}
+              </Text>
             </group>
           )
         })

@@ -11,6 +11,7 @@ export interface ConnectionPoint {
   id: string
   componentId: string
   type: 'inlet' | 'outlet' | 'branch' // branch for T-pieces
+  label: string // A, B, C, etc.
   position: Vector3 // relative to component
   direction: Vector3 // normal vector showing connection direction
   dn: DNValue

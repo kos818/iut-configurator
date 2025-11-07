@@ -10,6 +10,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
   const points: ConnectionPoint[] = []
   const dn = component.dn
   const radius = (DN_TO_MM[dn] / 2) / 1000 // convert to meters
+  const labels = ['A', 'B', 'C', 'D'] // Alphabetic labels
 
   switch (component.type) {
     case 'straight': {
@@ -19,6 +20,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
+        label: labels[0], // A
         position: new Vector3(0, -length / 2, 0),
         direction: new Vector3(0, -1, 0), // pointing down
         dn,
@@ -28,6 +30,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
+        label: labels[1], // B
         position: new Vector3(0, length / 2, 0),
         direction: new Vector3(0, 1, 0), // pointing up
         dn,
@@ -43,6 +46,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
+        label: labels[0], // A
         position: new Vector3(0, -bendRadius / 2, 0),
         direction: new Vector3(0, -1, 0),
         dn,
@@ -53,6 +57,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
+        label: labels[1], // B
         position: new Vector3(bendRadius / 2, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
@@ -68,6 +73,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
+        label: labels[0], // A
         position: new Vector3(-length / 2, 0, 0),
         direction: new Vector3(-1, 0, 0),
         dn,
@@ -78,6 +84,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
+        label: labels[1], // B
         position: new Vector3(length / 2, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
@@ -88,6 +95,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
+        label: labels[2], // C
         position: new Vector3(0, length / 4, 0),
         direction: new Vector3(0, 1, 0),
         dn,
@@ -103,6 +111,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
+        label: labels[0], // A
         position: new Vector3(0, -bodyLength / 2, 0),
         direction: new Vector3(0, -1, 0),
         dn,
@@ -112,6 +121,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
+        label: labels[1], // B
         position: new Vector3(0, bodyLength / 2, 0),
         direction: new Vector3(0, 1, 0),
         dn,
@@ -128,6 +138,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
+        label: labels[0], // A
         position: new Vector3(0, -length / 2, 0),
         direction: new Vector3(0, -1, 0),
         dn, // larger DN
@@ -137,6 +148,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
+        label: labels[1], // B
         position: new Vector3(0, length / 2, 0),
         direction: new Vector3(0, 1, 0),
         dn: Math.max(20, dn - 10) as DNValue, // smaller DN (simplified)
