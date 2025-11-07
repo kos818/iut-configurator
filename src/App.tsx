@@ -33,13 +33,13 @@ function App() {
         </main>
 
         {/* Right sidebar - Price and actions */}
-        <aside className="w-80 flex flex-col gap-4">
+        <aside className="w-80 overflow-y-auto flex flex-col gap-4">
           <PriceDisplay />
           <Toolbar />
           <ValidationPanel />
 
           {/* Info panel */}
-          <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex-1">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
             <h3 className="text-white font-bold mb-2">Anleitung</h3>
             <ul className="text-gray-300 text-sm space-y-2">
               <li>• Komponente links auswählen zum Hinzufügen</li>
