@@ -82,7 +82,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         <button
           onClick={onResetView}
           className="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-lg shadow-lg transition-colors"
-          title="Ansicht zurücksetzen"
+          title="Alle Elemente einpassen"
         >
           <Maximize2 className="w-5 h-5" />
         </button>
