@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Environment } from '@react-three/drei'
 import { PipeRenderer } from './PipeRenderer'
 import { ConnectionPointsVisualizer } from './ConnectionPointsVisualizer'
+import { ConnectionLinesVisualizer } from './ConnectionLinesVisualizer'
 
 export const Scene3D: React.FC = () => {
   return (
@@ -54,6 +55,9 @@ export const Scene3D: React.FC = () => {
 
         {/* Render connection points */}
         <ConnectionPointsVisualizer />
+
+        {/* Render connection lines */}
+        <ConnectionLinesVisualizer />
       </Suspense>
     </Canvas>
   )
