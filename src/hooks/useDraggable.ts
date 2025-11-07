@@ -10,6 +10,7 @@ export const useDraggable = (componentId: string) => {
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
   const components = useConfiguratorStore((state) => state.components)
   const setSnapTargets = useConfiguratorStore((state) => state.setSnapTargets)
+  const setGlobalDragging = useConfiguratorStore((state) => state.setIsDragging)
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<Vector3 | null>(null)
@@ -20,10 +21,11 @@ export const useDraggable = (componentId: string) => {
     e.stopPropagation()
     selectComponent(componentId)
     setIsDragging(true)
+    setGlobalDragging(true)
     if (component) {
       setDragStart(e.point.clone())
     }
-  }, [componentId, selectComponent, component])
+  }, [componentId, selectComponent, component, setGlobalDragging])
 
   const onPointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
     if (!isDragging || !dragStart || !component) return
@@ -59,6 +61,7 @@ export const useDraggable = (componentId: string) => {
     if (isDragging) {
       e.stopPropagation()
       setIsDragging(false)
+      setGlobalDragging(false)
       setDragStart(null)
       setSnapTargets([]) // Clear snap targets
 
@@ -107,7 +110,7 @@ export const useDraggable = (componentId: string) => {
         }
       }
     }
-  }, [isDragging, component, components, componentId, updateComponent, setSnapTargets])
+  }, [isDragging, component, components, componentId, updateComponent, setSnapTargets, setGlobalDragging])
 
   return {
     isDragging,
@@ -117,6 +120,7 @@ export const useDraggable = (componentId: string) => {
       onPointerUp,
       onPointerLeave: () => {
         setIsDragging(false)
+        setGlobalDragging(false)
         setDragStart(null)
         setSnapTargets([]) // Clear snap targets
       }

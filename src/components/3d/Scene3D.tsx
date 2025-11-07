@@ -4,8 +4,11 @@ import { OrbitControls, Grid, Environment } from '@react-three/drei'
 import { PipeRenderer } from './PipeRenderer'
 import { ConnectionPointsVisualizer } from './ConnectionPointsVisualizer'
 import { ConnectionLinesVisualizer } from './ConnectionLinesVisualizer'
+import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 
 export const Scene3D: React.FC = () => {
+  const isDragging = useConfiguratorStore((state) => state.isDragging)
+
   return (
     <Canvas
       camera={{ position: [3, 3, 3], fov: 60 }}
@@ -42,8 +45,9 @@ export const Scene3D: React.FC = () => {
           infiniteGrid
         />
 
-        {/* Camera controls */}
+        {/* Camera controls - Disabled while dragging objects */}
         <OrbitControls
+          enabled={!isDragging}
           enableDamping
           dampingFactor={0.05}
           minDistance={1}

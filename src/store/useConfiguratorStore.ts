@@ -23,6 +23,7 @@ interface ConfiguratorState {
   history: PipeComponent[][]
   historyIndex: number
   snapTargets: string[] // Connection point IDs that are potential snap targets
+  isDragging: boolean // Track if user is dragging an object
 
   // Actions
   addComponent: (template: ComponentTemplate, position?: Vector3) => void
@@ -30,6 +31,7 @@ interface ConfiguratorState {
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
   selectComponent: (id: string | null) => void
   setSnapTargets: (targets: string[]) => void
+  setIsDragging: (isDragging: boolean) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -46,6 +48,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   history: [[]],
   historyIndex: 0,
   snapTargets: [],
+  isDragging: false,
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
     const newComponent: PipeComponent = {
@@ -124,6 +127,10 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   setSnapTargets: (targets: string[]) => {
     set({ snapTargets: targets })
+  },
+
+  setIsDragging: (isDragging: boolean) => {
+    set({ isDragging })
   },
 
   calculateTotalPrice: () => {
