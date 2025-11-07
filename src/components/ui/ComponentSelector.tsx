@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Vector3 } from 'three'
+import { Vector3, Euler } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates } from '../../data/componentTemplates'
-import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent } from '../../types'
+import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent, ConnectionMethod } from '../../types'
 import { ConnectionDialog } from './ConnectionDialog'
 import { getWorldPosition, generateConnectionPoints } from '../../utils/connectionHelpers'
 import { calculateConnectionRotation } from '../../utils/rotationHelpers'
@@ -25,7 +25,7 @@ export const ComponentSelector: React.FC = () => {
     setDialogTemplate(template)
   }
 
-  const handleDialogConfirm = (connectionPointId: string | null, defaultDN?: number) => {
+  const handleDialogConfirm = (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod) => {
     if (!dialogTemplate) return
 
     if (connectionPointId && defaultDN) {
@@ -49,7 +49,7 @@ export const ComponentSelector: React.FC = () => {
         // Calculate position: place new component at target connection point
         const targetWorldPos = getWorldPosition(targetComponent, targetCP)
 
-        // Create a temporary component to calculate its default connection point direction
+        // Create a temporary component to calculate its default connection point direction and position
         const tempComponent: Partial<PipeComponent> = {
           id: 'temp',
           type: templateWithDN.type,
@@ -65,13 +65,23 @@ export const ComponentSelector: React.FC = () => {
           validationMessages: [],
         }
         const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
-        const firstCPDirection = tempCPs.length > 0 ? tempCPs[0].direction : new Vector3(0, 1, 0)
+        const firstCP = tempCPs.length > 0 ? tempCPs[0] : null
+        const firstCPDirection = firstCP ? firstCP.direction : new Vector3(0, 1, 0)
+        const firstCPPosition = firstCP ? firstCP.position : new Vector3(0, 0, 0)
 
         // Calculate rotation to align new component with target
         const rotation = calculateConnectionRotation(targetCP.direction, firstCPDirection)
 
-        // Add component at target position with calculated rotation
-        addComponent(templateWithDN, targetWorldPos)
+        // Apply rotation to the connection point position to get the offset in world space
+        // We need to rotate the CP position by the calculated rotation
+        const rotatedCPOffset = firstCPPosition.clone()
+        rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
+
+        // Calculate the actual component position: target position minus the rotated CP offset
+        const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
+
+        // Add component at corrected position with calculated rotation
+        addComponent(templateWithDN, actualPosition)
 
         // Wait for next tick to get the new component and apply rotation + connection
         setTimeout(() => {
@@ -85,13 +95,13 @@ export const ComponentSelector: React.FC = () => {
             updateComponent(newComponent.id, {
               rotation,
               connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
-                cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id } : cp
+                cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
               )
             })
 
             updateComponent(targetComponent.id, {
               connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
-                cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id } : cp
+                cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
               )
             })
           }

@@ -21,9 +21,9 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   onPanRight,
 }) => {
   return (
-    <div className="absolute bottom-4 right-4 flex gap-4 z-10">
-      {/* Pan Controls */}
-      <div className="flex flex-col gap-2">
+    <>
+      {/* Pan Controls - Bottom Left */}
+      <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10">
         <div className="text-white text-xs text-center mb-1 font-semibold">Verschieben</div>
         <div className="grid grid-cols-3 gap-1">
           <div></div>
@@ -62,8 +62,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         </div>
       </div>
 
-      {/* Zoom Controls */}
-      <div className="flex flex-col gap-2">
+      {/* Zoom Controls - Bottom Right */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
         <div className="text-white text-xs text-center mb-1 font-semibold">Zoom</div>
         <button
           onClick={onZoomIn}
@@ -87,6 +87,6 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
           <Maximize2 className="w-5 h-5" />
         </button>
       </div>
-    </div>
+    </>
   )
 }

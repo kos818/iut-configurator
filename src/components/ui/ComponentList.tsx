@@ -25,6 +25,8 @@ export const ComponentList: React.FC = () => {
           const isSelected = component.id === selectedComponent
           const connectedCount = component.connectionPoints.filter(cp => cp.connectedTo !== null).length
           const totalCount = component.connectionPoints.length
+          const weldedCount = component.connectionPoints.filter(cp => cp.connectionMethod === 'welded').length
+          const flangedCount = component.connectionPoints.filter(cp => cp.connectionMethod === 'flanged').length
 
           return (
             <div
@@ -53,6 +55,8 @@ export const ComponentList: React.FC = () => {
                     </div>
                     <div className={`text-xs ${isSelected ? 'text-blue-200' : 'text-gray-500'}`}>
                       Verbindungen: {connectedCount}/{totalCount}
+                      {weldedCount > 0 && ` • ${weldedCount} geschweißt`}
+                      {flangedCount > 0 && ` • ${flangedCount} geflansch`}
                     </div>
                   </div>
                 </div>

@@ -6,6 +6,9 @@ export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
 // DN (Diameter Nominal) values
 export type DNValue = 20 | 25 | 32 | 40 | 50 | 65 | 80 | 100 | 125 | 150
 
+// Connection method type
+export type ConnectionMethod = 'welded' | 'flanged'
+
 // Connection point on a component
 export interface ConnectionPoint {
   id: string
@@ -16,6 +19,7 @@ export interface ConnectionPoint {
   direction: Vector3 // normal vector showing connection direction
   dn: DNValue
   connectedTo: string | null // ID of connected connection point
+  connectionMethod?: ConnectionMethod // How this point is connected (welded or flanged)
 }
 
 // Connection between two components

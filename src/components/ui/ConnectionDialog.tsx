@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import { X, Link2, Circle } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { ComponentTemplate } from '../../types'
+import { ComponentTemplate, ConnectionMethod } from '../../types'
 
 interface ConnectionDialogProps {
   template: ComponentTemplate
-  onConfirm: (connectionPointId: string | null, defaultDN?: number) => void
+  onConfirm: (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod) => void
   onCancel: () => void
 }
 
@@ -16,6 +16,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 }) => {
   const components = useConfiguratorStore((state) => state.components)
   const [selectedConnectionPoint, setSelectedConnectionPoint] = useState<string | null>(null)
+  const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>('welded')
 
   // Get all available (unconnected) connection points
   const availableConnectionPoints = components.flatMap((component) =>
@@ -32,8 +33,8 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     if (selectedConnectionPoint) {
       const cp = availableConnectionPoints.find((p) => p.id === selectedConnectionPoint)
       if (cp) {
-        // Pass connection point ID and DN value to use as default
-        onConfirm(selectedConnectionPoint, cp.dn)
+        // Pass connection point ID, DN value, and connection method
+        onConfirm(selectedConnectionPoint, cp.dn, connectionMethod)
         return
       }
     }
@@ -85,6 +86,45 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
               </div>
             </label>
           </div>
+
+          {/* Connection Method Selection - only show if a connection point will be selected */}
+          {selectedConnectionPoint && (
+            <div className="mb-4 p-3 border border-blue-200 bg-blue-50 rounded-lg">
+              <div className="text-sm font-semibold text-gray-900 mb-2">
+                Verbindungsmethode:
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="connectionMethod"
+                    value="welded"
+                    checked={connectionMethod === 'welded'}
+                    onChange={() => setConnectionMethod('welded')}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm">Schweißverbindung</div>
+                    <div className="text-xs text-gray-600">Direktes Verschweißen</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="connectionMethod"
+                    value="flanged"
+                    checked={connectionMethod === 'flanged'}
+                    onChange={() => setConnectionMethod('flanged')}
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm">Verflanschung</div>
+                    <div className="text-xs text-gray-600">Mit Gegenflansch (automatisch hinzugefügt)</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Available connection points */}
           {availableConnectionPoints.length > 0 && (
