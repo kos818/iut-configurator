@@ -15,6 +15,12 @@ export const ComponentSelector: React.FC = () => {
   const [dialogTemplate, setDialogTemplate] = useState<ComponentTemplate | null>(null)
 
   const handleComponentClick = (template: ComponentTemplate) => {
+    // If no components exist yet, add first one directly without dialog
+    if (components.length === 0) {
+      addComponent(template, new Vector3(0, 0, 0))
+      return
+    }
+
     // Show dialog to choose connection
     setDialogTemplate(template)
   }
