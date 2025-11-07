@@ -22,12 +22,14 @@ interface ConfiguratorState {
   totalPrice: number
   history: PipeComponent[][]
   historyIndex: number
+  snapTargets: string[] // Connection point IDs that are potential snap targets
 
   // Actions
   addComponent: (template: ComponentTemplate, position?: Vector3) => void
   removeComponent: (id: string) => void
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
   selectComponent: (id: string | null) => void
+  setSnapTargets: (targets: string[]) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -43,6 +45,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   totalPrice: 0,
   history: [[]],
   historyIndex: 0,
+  snapTargets: [],
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
     const newComponent: PipeComponent = {
@@ -117,6 +120,10 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   selectComponent: (id: string | null) => {
     set({ selectedComponent: id })
+  },
+
+  setSnapTargets: (targets: string[]) => {
+    set({ snapTargets: targets })
   },
 
   calculateTotalPrice: () => {

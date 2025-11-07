@@ -9,6 +9,7 @@ export const useDraggable = (componentId: string) => {
   const updateComponent = useConfiguratorStore((state) => state.updateComponent)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
   const components = useConfiguratorStore((state) => state.components)
+  const setSnapTargets = useConfiguratorStore((state) => state.setSnapTargets)
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<Vector3 | null>(null)
@@ -35,15 +36,31 @@ export const useDraggable = (componentId: string) => {
     const newPosition = component.position.clone().add(delta)
     updateComponent(componentId, { position: newPosition })
 
+    // Check for nearby connection points for snap preview
+    const availableCP = component.connectionPoints.find(cp => cp.connectedTo === null)
+    if (availableCP) {
+      const cpWorldPos = getWorldPosition(component, availableCP)
+      const nearby = findNearbyConnectionPoints(components, cpWorldPos, componentId)
+
+      if (nearby.length > 0 && nearby[0].distance < SNAP_DISTANCE) {
+        // Set snap target to highlight it
+        setSnapTargets([nearby[0].connectionPoint.id])
+      } else {
+        // Clear snap targets if nothing nearby
+        setSnapTargets([])
+      }
+    }
+
     // Update drag start for next move
     setDragStart(e.point.clone())
-  }, [isDragging, dragStart, component, componentId, updateComponent])
+  }, [isDragging, dragStart, component, componentId, components, updateComponent, setSnapTargets])
 
   const onPointerUp = useCallback((e: ThreeEvent<PointerEvent>) => {
     if (isDragging) {
       e.stopPropagation()
       setIsDragging(false)
       setDragStart(null)
+      setSnapTargets([]) // Clear snap targets
 
       // Check for snap-to-connect
       if (component) {
@@ -90,7 +107,7 @@ export const useDraggable = (componentId: string) => {
         }
       }
     }
-  }, [isDragging, component, components, componentId, updateComponent])
+  }, [isDragging, component, components, componentId, updateComponent, setSnapTargets])
 
   return {
     isDragging,
@@ -101,6 +118,7 @@ export const useDraggable = (componentId: string) => {
       onPointerLeave: () => {
         setIsDragging(false)
         setDragStart(null)
+        setSnapTargets([]) // Clear snap targets
       }
     }
   }

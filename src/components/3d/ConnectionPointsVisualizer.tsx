@@ -5,6 +5,7 @@ import { getWorldPosition } from '../../utils/connectionHelpers'
 export const ConnectionPointsVisualizer: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
+  const snapTargets = useConfiguratorStore((state) => state.snapTargets)
 
   return (
     <group>
@@ -15,16 +16,24 @@ export const ConnectionPointsVisualizer: React.FC = () => {
           // Get world position of connection point
           const worldPos = getWorldPosition(component, cp)
           const isConnected = cp.connectedTo !== null
+          const isSnapTarget = snapTargets.includes(cp.id)
 
           // Color coding:
+          // - Orange: snap target (nearby during drag)
           // - Green: available for connection
           // - Blue: connected
           // - Yellow: selected component's connection point
           let color = '#00ff00' // green
-          if (isConnected) {
+          let size = 0.03
+          let emissiveIntensity = 0.5
+
+          if (isSnapTarget) {
+            color = '#ff6600' // orange - snap target
+            size = 0.05 // larger
+            emissiveIntensity = 1.0 // brighter
+          } else if (isConnected) {
             color = '#0088ff' // blue
-          }
-          if (isSelected) {
+          } else if (isSelected) {
             color = '#ffff00' // yellow
           }
 
@@ -32,11 +41,11 @@ export const ConnectionPointsVisualizer: React.FC = () => {
             <group key={cp.id}>
               {/* Connection point sphere */}
               <mesh position={[worldPos.x, worldPos.y, worldPos.z]}>
-                <sphereGeometry args={[0.03, 16, 16]} />
+                <sphereGeometry args={[size, 16, 16]} />
                 <meshStandardMaterial
                   color={color}
                   emissive={color}
-                  emissiveIntensity={0.5}
+                  emissiveIntensity={emissiveIntensity}
                   transparent
                   opacity={0.8}
                 />
