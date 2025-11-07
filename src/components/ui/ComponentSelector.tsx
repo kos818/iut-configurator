@@ -2,9 +2,10 @@ import React, { useState } from 'react'
 import { Vector3 } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates } from '../../data/componentTemplates'
-import { ComponentTemplate, DNValue, ConnectionPoint } from '../../types'
+import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent } from '../../types'
 import { ConnectionDialog } from './ConnectionDialog'
-import { getWorldPosition } from '../../utils/connectionHelpers'
+import { getWorldPosition, generateConnectionPoints } from '../../utils/connectionHelpers'
+import { calculateConnectionRotation } from '../../utils/rotationHelpers'
 
 export const ComponentSelector: React.FC = () => {
   const addComponent = useConfiguratorStore((state) => state.addComponent)
@@ -42,10 +43,31 @@ export const ComponentSelector: React.FC = () => {
         // Calculate position: place new component at target connection point
         const targetWorldPos = getWorldPosition(targetComponent, targetCP)
 
-        // Add component at target position
+        // Create a temporary component to calculate its default connection point direction
+        const tempComponent: Partial<PipeComponent> = {
+          id: 'temp',
+          type: templateWithDN.type,
+          position: new Vector3(0, 0, 0),
+          rotation: new Vector3(0, 0, 0),
+          dn: templateWithDN.defaultDN,
+          length: templateWithDN.defaultLength,
+          angle: templateWithDN.defaultAngle,
+          price: 0,
+          material: templateWithDN.material,
+          connectionPoints: [],
+          isValid: true,
+          validationMessages: [],
+        }
+        const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
+        const firstCPDirection = tempCPs.length > 0 ? tempCPs[0].direction : new Vector3(0, 1, 0)
+
+        // Calculate rotation to align new component with target
+        const rotation = calculateConnectionRotation(targetCP.direction, firstCPDirection)
+
+        // Add component at target position with calculated rotation
         addComponent(templateWithDN, targetWorldPos)
 
-        // Wait for next tick to get the new component and connect it
+        // Wait for next tick to get the new component and apply rotation + connection
         setTimeout(() => {
           const allComponents = useConfiguratorStore.getState().components
           const newComponent = allComponents[allComponents.length - 1]
@@ -53,8 +75,9 @@ export const ComponentSelector: React.FC = () => {
           if (newComponent && newComponent.connectionPoints.length > 0) {
             const newCP = newComponent.connectionPoints[0] // Use first connection point
 
-            // Mark both connection points as connected
+            // Apply rotation and mark both connection points as connected
             updateComponent(newComponent.id, {
+              rotation,
               connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
                 cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id } : cp
               )
