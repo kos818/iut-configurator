@@ -41,8 +41,9 @@ export const ConnectionFlangeVisualizer: React.FC<ConnectionFlangeVisualizerProp
         const flangeRadius = pipeRadius * 2
         const flangeThickness = pipeRadius * 0.4
 
-        // Position flange slightly outward from the connection point (at the element's end)
-        // Move by half thickness in the direction of the connection point
+        // Position flange at the pipe end (connection point)
+        // The flange extends outward from the CP
+        // The cylinder is centered at CP + thickness/2, so it extends from CP to CP + thickness
         const flangeOffset = direction.clone().multiplyScalar(flangeThickness / 2)
         const flangePos = worldPos.clone().add(flangeOffset)
 

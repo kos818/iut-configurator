@@ -1,4 +1,4 @@
-import { Vector3, Euler } from 'three'
+import { Vector3, Euler, Quaternion } from 'three'
 
 /**
  * Calculate rotation needed to align a direction vector with a target direction
@@ -12,40 +12,36 @@ export const calculateRotationToAlign = (
   const from = fromDirection.clone().normalize()
   const to = toDirection.clone().normalize()
 
-  // Calculate rotation axis (cross product)
-  const axis = new Vector3().crossVectors(from, to)
+  // Check if vectors are parallel or anti-parallel
+  const dot = from.dot(to)
 
-  // If vectors are parallel or anti-parallel, handle special cases
-  if (axis.length() < 0.0001) {
+  if (dot > 0.999999) {
     // Vectors are parallel - no rotation needed
-    if (from.dot(to) > 0) {
-      return new Euler(0, 0, 0)
-    }
+    return new Euler(0, 0, 0)
+  }
+
+  if (dot < -0.999999) {
     // Vectors are anti-parallel - 180 degree rotation
-    return new Euler(Math.PI, 0, 0)
+    // Choose an arbitrary perpendicular axis
+    let axis = new Vector3(1, 0, 0)
+    if (Math.abs(from.x) > 0.9) {
+      axis = new Vector3(0, 1, 0)
+    }
+    axis.cross(from).normalize()
+    const quaternion = new Quaternion()
+    quaternion.setFromAxisAngle(axis, Math.PI)
+    const euler = new Euler()
+    euler.setFromQuaternion(quaternion)
+    return euler
   }
 
-  // Calculate rotation angle
-  const angle = Math.acos(Math.max(-1, Math.min(1, from.dot(to))))
+  // Calculate rotation using quaternion (most accurate method)
+  const quaternion = new Quaternion()
+  quaternion.setFromUnitVectors(from, to)
 
-  // Normalize rotation axis
-  axis.normalize()
-
-  // Convert axis-angle to Euler angles
-  // This is a simplified approach - for more complex cases, use Quaternions
+  // Convert quaternion to Euler angles
   const euler = new Euler()
-
-  // Map axis and angle to Euler angles
-  // This is an approximation that works for most pipe connections
-  if (Math.abs(axis.x) > 0.5) {
-    euler.x = angle * Math.sign(axis.x)
-  }
-  if (Math.abs(axis.y) > 0.5) {
-    euler.y = angle * Math.sign(axis.y)
-  }
-  if (Math.abs(axis.z) > 0.5) {
-    euler.z = angle * Math.sign(axis.z)
-  }
+  euler.setFromQuaternion(quaternion)
 
   return euler
 }
