@@ -7,6 +7,7 @@ import { TeePipe } from './TeePipe'
 import { Valve } from './Valve'
 import { Flange } from './Flange'
 import { Reducer } from './Reducer'
+import { ConnectionFlangeVisualizer } from './ConnectionFlangeVisualizer'
 
 export const PipeRenderer: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -14,6 +15,7 @@ export const PipeRenderer: React.FC = () => {
 
   return (
     <group>
+      {/* Render all components */}
       {components.map((component) => {
         const position: [number, number, number] = [
           component.position.x,
@@ -106,6 +108,11 @@ export const PipeRenderer: React.FC = () => {
             return null
         }
       })}
+
+      {/* Render flanges for all flanged connections */}
+      {components.map((component) => (
+        <ConnectionFlangeVisualizer key={`flange-${component.id}`} component={component} />
+      ))}
     </group>
   )
 }
