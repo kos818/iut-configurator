@@ -74,39 +74,40 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         branch: component.armLength || 200
       }
 
-      const inletLength = armLengths.inlet / 1000 / 2  // Convert mm to meters, half for position
-      const outletLength = armLengths.outlet / 1000 / 2
-      const branchLength = armLengths.branch / 1000 / 2
+      // Full arm lengths in meters (at the end of each arm, not middle)
+      const inletLengthM = armLengths.inlet / 1000  // Convert mm to meters
+      const outletLengthM = armLengths.outlet / 1000
+      const branchLengthM = armLengths.branch / 1000
 
-      // Inlet (left, Arm A)
+      // Inlet (left, Arm A) - at the end of the arm
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(-inletLength, 0, 0),
+        position: new Vector3(-inletLengthM, 0, 0),
         direction: new Vector3(-1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Outlet (right, Arm B)
+      // Outlet (right, Arm B) - at the end of the arm
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(outletLength, 0, 0),
+        position: new Vector3(outletLengthM, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Branch (top, Arm C)
+      // Branch (top, Arm C) - at the end of the arm
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(0, branchLength, 0),
+        position: new Vector3(0, branchLengthM, 0),
         direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,
