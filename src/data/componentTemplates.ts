@@ -40,6 +40,7 @@ export const componentTemplates: ComponentTemplate[] = [
     name: 'T-Stück',
     description: 'T-Verbindung für drei Rohre',
     defaultDN: 50,
+    defaultArmLength: 200, // Default arm length in mm
     basePrice: 35.0,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],
     material: 'steel',

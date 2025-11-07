@@ -67,36 +67,39 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     }
 
     case 'tee': {
-      const length = radius * 4
-      // Inlet
+      // Use configurable arm length, or default based on radius
+      const armLength = (component.armLength || 200) / 1000 // Convert mm to meters
+      const halfArmLength = armLength / 2
+
+      // Inlet (left)
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(-length / 2, 0, 0),
+        position: new Vector3(-halfArmLength, 0, 0),
         direction: new Vector3(-1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Outlet
+      // Outlet (right)
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(length / 2, 0, 0),
+        position: new Vector3(halfArmLength, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Branch
+      // Branch (top)
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(0, length / 4, 0),
+        position: new Vector3(0, halfArmLength, 0),
         direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,

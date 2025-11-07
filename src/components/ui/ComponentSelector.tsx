@@ -58,6 +58,7 @@ export const ComponentSelector: React.FC = () => {
           dn: templateWithDN.defaultDN,
           length: templateWithDN.defaultLength,
           angle: templateWithDN.defaultAngle,
+          armLength: templateWithDN.defaultArmLength,
           price: 0,
           material: templateWithDN.material,
           connectionPoints: [],
@@ -79,7 +80,26 @@ export const ComponentSelector: React.FC = () => {
         rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
 
         // Calculate the actual component position: target position minus the rotated CP offset
-        const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
+        let actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
+
+        // If using flanged connection, add extra spacing for the flanges
+        if (connectionMethod === 'flanged') {
+          // Calculate flange thickness based on DN
+          const pipeRadius = targetCP.dn / 2000 // Convert DN to meters radius
+          const flangeThickness = pipeRadius * 0.4
+
+          // Add spacing for both flanges (2x thickness)
+          const flangeSpacing = flangeThickness * 2
+
+          // Get the direction from target CP to new component (opposite of target CP direction)
+          const targetDirection = targetCP.direction.clone()
+          const targetRotation = new Euler(targetComponent.rotation.x, targetComponent.rotation.y, targetComponent.rotation.z)
+          targetDirection.applyEuler(targetRotation)
+
+          // Move the component away by the flange spacing
+          const spacingOffset = targetDirection.clone().multiplyScalar(flangeSpacing)
+          actualPosition.add(spacingOffset)
+        }
 
         // Add component at corrected position with calculated rotation
         addComponent(templateWithDN, actualPosition)

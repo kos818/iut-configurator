@@ -155,6 +155,12 @@ export const PropertiesPanel: React.FC = () => {
     updateComponent(selectedComponent.id, { material: newMaterial })
   }
 
+  const handleArmLengthChange = (newArmLength: number) => {
+    if (selectedComponent.type === 'tee') {
+      updateComponent(selectedComponent.id, { armLength: newArmLength })
+    }
+  }
+
   const handlePositionChange = (axis: 'x' | 'y' | 'z', value: number) => {
     const newPosition = selectedComponent.position.clone()
     newPosition[axis] = value
@@ -243,6 +249,23 @@ export const PropertiesPanel: React.FC = () => {
               min="100"
               max="10000"
               step="100"
+            />
+          </div>
+        )}
+
+        {selectedComponent.type === 'tee' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Schenkellänge (mm)
+            </label>
+            <input
+              type="number"
+              value={selectedComponent.armLength || 200}
+              onChange={(e) => handleArmLengthChange(Number(e.target.value))}
+              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+              min="50"
+              max="1000"
+              step="50"
             />
           </div>
         )}

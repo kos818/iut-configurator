@@ -39,6 +39,7 @@ export interface PipeComponent {
   dn: DNValue // Changed from diameter
   length?: number // in mm (for straight pipes)
   angle?: number // in degrees (for elbows)
+  armLength?: number // in mm (for tee pieces - length of the arms)
   price: number // in EUR
   material: MaterialType
   connectionPoints: ConnectionPoint[]
@@ -53,6 +54,7 @@ export interface ComponentTemplate {
   defaultDN: DNValue
   defaultLength?: number
   defaultAngle?: number
+  defaultArmLength?: number // for tee pieces
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length
   availableDNs: DNValue[]

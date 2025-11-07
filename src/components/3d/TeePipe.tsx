@@ -6,6 +6,7 @@ import { useDraggable } from '../../hooks/useDraggable'
 interface TeePipeProps {
   id: string
   diameter: number
+  armLength?: number // in mm
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
@@ -15,6 +16,7 @@ interface TeePipeProps {
 export const TeePipe: React.FC<TeePipeProps> = ({
   id,
   diameter,
+  armLength = 200, // default 200mm
   position,
   rotation,
   selected,
@@ -24,7 +26,7 @@ export const TeePipe: React.FC<TeePipeProps> = ({
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
-  const length = outerRadius * 4
+  const length = armLength / 1000 // Convert mm to meters
 
   const color = getMaterialColor(material, selected)
   const metalness = getMaterialMetalness(material)
