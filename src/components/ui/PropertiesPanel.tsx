@@ -162,6 +162,70 @@ export const PropertiesPanel: React.FC = () => {
         outlet: selectedComponent.armLength || 200,
         branch: selectedComponent.armLength || 200
       }
+
+      const oldLength = currentArmLengths[arm]
+      const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
+
+      // Map arm names to connection point types and directions in local space
+      const armConfig: Record<'inlet' | 'outlet' | 'branch', { label: string; direction: Vector3 }> = {
+        inlet: { label: 'A', direction: new Vector3(-1, 0, 0) }, // left
+        outlet: { label: 'B', direction: new Vector3(1, 0, 0) }, // right
+        branch: { label: 'C', direction: new Vector3(0, 1, 0) }, // top
+      }
+
+      const config = armConfig[arm]
+
+      // Find the connection point for this arm
+      const armCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === config.label)
+
+      if (armCP && armCP.connectedTo) {
+        // Calculate the offset in local space
+        const localOffset = config.direction.clone().multiplyScalar(lengthDiff)
+
+        // Apply rotation to get world space offset
+        const worldOffset = localOffset.clone()
+        worldOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        // Helper function to move a component and all connected components recursively
+        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
+          if (visitedIds.has(componentId)) return
+          visitedIds.add(componentId)
+
+          const comp = components.find((c) => c.id === componentId)
+          if (!comp) return
+
+          // Move this component
+          const newPos = comp.position.clone().add(offset)
+          updateComponent(componentId, { position: newPos })
+
+          // Recursively move all connected components except the original tee
+          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
+            if (cp.connectedTo && cp.connectedTo !== armCP.id) {
+              // Find the component that owns this connection point
+              const connectedComp = components.find((c) =>
+                c.connectionPoints.some((p) => p.id === cp.connectedTo)
+              )
+              if (connectedComp && connectedComp.id !== selectedComponent.id) {
+                moveComponentTree(connectedComp.id, offset, visitedIds)
+              }
+            }
+          })
+        }
+
+        // Find the connected component and move it
+        const connectedComp = components.find((c) =>
+          c.connectionPoints.some((cp) => cp.id === armCP.connectedTo)
+        )
+        if (connectedComp) {
+          moveComponentTree(connectedComp.id, worldOffset)
+        }
+      }
+
+      // Update the tee arm lengths
       updateComponent(selectedComponent.id, {
         teeArmLengths: {
           ...currentArmLengths,

@@ -106,9 +106,22 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         if (updates.material || updates.dn || updates.length) {
           updated.price = calculateComponentPrice(updated)
         }
-        // Regenerate connection points if dn or length changed
-        if (updates.dn || updates.length) {
-          updated.connectionPoints = generateConnectionPoints(updated)
+        // Regenerate connection points if dn, length, or teeArmLengths changed
+        if (updates.dn || updates.length || updates.teeArmLengths) {
+          // Store existing connection info before regenerating
+          const existingConnections = new Map(
+            c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])
+          )
+
+          // Generate new connection points with updated positions
+          const newConnectionPoints = generateConnectionPoints(updated)
+
+          // Restore connection info to new connection points
+          updated.connectionPoints = newConnectionPoints.map(cp => ({
+            ...cp,
+            connectedTo: existingConnections.get(cp.type)?.connectedTo ?? cp.connectedTo,
+            connectionMethod: existingConnections.get(cp.type)?.connectionMethod ?? cp.connectionMethod,
+          }))
         }
         return updated
       }
