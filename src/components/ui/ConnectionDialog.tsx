@@ -5,7 +5,7 @@ import { ComponentTemplate, ConnectionMethod } from '../../types'
 
 interface ConnectionDialogProps {
   template: ComponentTemplate
-  onConfirm: (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod) => void
+  onConfirm: (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod, newComponentCPIndex?: number) => void
   onCancel: () => void
 }
 
@@ -17,6 +17,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   const components = useConfiguratorStore((state) => state.components)
   const [selectedConnectionPoint, setSelectedConnectionPoint] = useState<string | null>(null)
   const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>('welded')
+  const [newComponentCPIndex, setNewComponentCPIndex] = useState<number>(0) // Which CP of the new component to use
 
   // Get all available (unconnected) connection points
   const availableConnectionPoints = components.flatMap((component) =>
@@ -33,14 +34,18 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
     if (selectedConnectionPoint) {
       const cp = availableConnectionPoints.find((p) => p.id === selectedConnectionPoint)
       if (cp) {
-        // Pass connection point ID, DN value, and connection method
-        onConfirm(selectedConnectionPoint, cp.dn, connectionMethod)
+        // Pass connection point ID, DN value, connection method, and which CP of new component to use
+        onConfirm(selectedConnectionPoint, cp.dn, connectionMethod, newComponentCPIndex)
         return
       }
     }
     // No connection selected - add freely
     onConfirm(null)
   }
+
+  // Get connection point labels for the new component
+  const newComponentCPLabels = ['A', 'B', 'C', 'D'].slice(0, template.connectionPointTypes.length)
+  const hasMultipleCPs = template.connectionPointTypes.length > 1
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -122,6 +127,37 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                     <div className="text-xs text-gray-600">Mit Gegenflansch (automatisch hinzugefügt)</div>
                   </div>
                 </label>
+              </div>
+            </div>
+          )}
+
+          {/* Connection Point Selection - only show if multiple connection points and a target is selected */}
+          {selectedConnectionPoint && hasMultipleCPs && (
+            <div className="mb-4 p-3 border border-green-200 bg-green-50 rounded-lg">
+              <div className="text-sm font-semibold text-gray-900 mb-2">
+                Welche Öffnung von "{template.name}" anschließen?
+              </div>
+              <div className="space-y-2">
+                {newComponentCPLabels.map((label, index) => (
+                  <label key={label} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="newComponentCP"
+                      value={index}
+                      checked={newComponentCPIndex === index}
+                      onChange={() => setNewComponentCPIndex(index)}
+                      className="w-4 h-4"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">
+                        Öffnung {label}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {template.connectionPointTypes[index]}
+                      </div>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
           )}

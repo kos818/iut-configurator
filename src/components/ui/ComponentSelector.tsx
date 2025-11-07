@@ -25,7 +25,7 @@ export const ComponentSelector: React.FC = () => {
     setDialogTemplate(template)
   }
 
-  const handleDialogConfirm = (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod) => {
+  const handleDialogConfirm = (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod, newComponentCPIndex: number = 0) => {
     if (!dialogTemplate) return
 
     if (connectionPointId && defaultDN) {
@@ -65,16 +65,17 @@ export const ComponentSelector: React.FC = () => {
           validationMessages: [],
         }
         const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
-        const firstCP = tempCPs.length > 0 ? tempCPs[0] : null
-        const firstCPDirection = firstCP ? firstCP.direction : new Vector3(0, 1, 0)
-        const firstCPPosition = firstCP ? firstCP.position : new Vector3(0, 0, 0)
+        // Use the selected connection point index instead of always using first (0)
+        const selectedCP = tempCPs.length > newComponentCPIndex ? tempCPs[newComponentCPIndex] : tempCPs[0]
+        const selectedCPDirection = selectedCP ? selectedCP.direction : new Vector3(0, 1, 0)
+        const selectedCPPosition = selectedCP ? selectedCP.position : new Vector3(0, 0, 0)
 
         // Calculate rotation to align new component with target
-        const rotation = calculateConnectionRotation(targetCP.direction, firstCPDirection)
+        const rotation = calculateConnectionRotation(targetCP.direction, selectedCPDirection)
 
         // Apply rotation to the connection point position to get the offset in world space
         // We need to rotate the CP position by the calculated rotation
-        const rotatedCPOffset = firstCPPosition.clone()
+        const rotatedCPOffset = selectedCPPosition.clone()
         rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
 
         // Calculate the actual component position: target position minus the rotated CP offset
@@ -88,8 +89,8 @@ export const ComponentSelector: React.FC = () => {
           const allComponents = useConfiguratorStore.getState().components
           const newComponent = allComponents[allComponents.length - 1]
 
-          if (newComponent && newComponent.connectionPoints.length > 0) {
-            const newCP = newComponent.connectionPoints[0] // Use first connection point
+          if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
+            const newCP = newComponent.connectionPoints[newComponentCPIndex] // Use selected connection point
 
             // Apply rotation and mark both connection points as connected
             updateComponent(newComponent.id, {
