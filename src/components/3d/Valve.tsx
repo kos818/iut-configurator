@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
-import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { useDraggable } from '../../hooks/useDraggable'
 
 interface ValveProps {
   id: string
@@ -21,7 +21,7 @@ export const Valve: React.FC<ValveProps> = ({
   material,
 }) => {
   const meshRef = useRef<Mesh>(null)
-  const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const bodyLength = outerRadius * 3
@@ -32,15 +32,9 @@ export const Valve: React.FC<ValveProps> = ({
   const roughness = getMaterialRoughness(material)
 
   return (
-    <group position={position} rotation={rotation}>
+    <group position={position} rotation={rotation} {...dragHandlers}>
       {/* Valve body */}
-      <mesh
-        ref={meshRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectComponent(id)
-        }}
-      >
+      <mesh ref={meshRef}>
         <cylinderGeometry args={[outerRadius * 1.5, outerRadius * 1.5, bodyLength, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>

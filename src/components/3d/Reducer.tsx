@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
-import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { useDraggable } from '../../hooks/useDraggable'
 
 interface ReducerProps {
   id: string
@@ -21,7 +21,7 @@ export const Reducer: React.FC<ReducerProps> = ({
   material,
 }) => {
   const meshRef = useRef<Mesh>(null)
-  const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const { dragHandlers } = useDraggable(id)
 
   const largeRadius = (diameter / 2) / 1000
   const smallRadius = largeRadius * 0.6
@@ -32,15 +32,9 @@ export const Reducer: React.FC<ReducerProps> = ({
   const roughness = getMaterialRoughness(material)
 
   return (
-    <group position={position} rotation={rotation}>
+    <group position={position} rotation={rotation} {...dragHandlers}>
       {/* Reducer cone */}
-      <mesh
-        ref={meshRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectComponent(id)
-        }}
-      >
+      <mesh ref={meshRef}>
         <cylinderGeometry args={[smallRadius, largeRadius, length, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>

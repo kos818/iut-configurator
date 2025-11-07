@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { Mesh } from 'three'
-import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { useDraggable } from '../../hooks/useDraggable'
 
 interface TeePipeProps {
   id: string
@@ -21,7 +21,7 @@ export const TeePipe: React.FC<TeePipeProps> = ({
   material,
 }) => {
   const meshRef = useRef<Mesh>(null)
-  const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const length = outerRadius * 4
@@ -31,14 +31,8 @@ export const TeePipe: React.FC<TeePipeProps> = ({
   const roughness = getMaterialRoughness(material)
 
   return (
-    <group position={position} rotation={rotation}>
-      <mesh
-        ref={meshRef}
-        onClick={(e) => {
-          e.stopPropagation()
-          selectComponent(id)
-        }}
-      >
+    <group position={position} rotation={rotation} {...dragHandlers}>
+      <mesh ref={meshRef}>
         {/* Main horizontal pipe */}
         <cylinderGeometry args={[outerRadius, outerRadius, length, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
