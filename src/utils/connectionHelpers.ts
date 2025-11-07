@@ -67,39 +67,46 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     }
 
     case 'tee': {
-      // Use configurable arm length, or default based on radius
-      const armLength = (component.armLength || 200) / 1000 // Convert mm to meters
-      const halfArmLength = armLength / 2
+      // Use configurable arm lengths, or defaults
+      const armLengths = component.teeArmLengths || {
+        inlet: component.armLength || 200,
+        outlet: component.armLength || 200,
+        branch: component.armLength || 200
+      }
 
-      // Inlet (left)
+      const inletLength = armLengths.inlet / 1000 / 2  // Convert mm to meters, half for position
+      const outletLength = armLengths.outlet / 1000 / 2
+      const branchLength = armLengths.branch / 1000 / 2
+
+      // Inlet (left, Arm A)
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(-halfArmLength, 0, 0),
+        position: new Vector3(-inletLength, 0, 0),
         direction: new Vector3(-1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Outlet (right)
+      // Outlet (right, Arm B)
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(halfArmLength, 0, 0),
+        position: new Vector3(outletLength, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Branch (top)
+      // Branch (top, Arm C)
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(0, halfArmLength, 0),
+        position: new Vector3(0, branchLength, 0),
         direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,

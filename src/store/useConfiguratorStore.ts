@@ -60,6 +60,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       length: template.defaultLength,
       angle: template.defaultAngle,
       armLength: template.defaultArmLength,
+      teeArmLengths: template.defaultTeeArmLengths,
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,

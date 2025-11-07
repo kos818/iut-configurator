@@ -155,9 +155,19 @@ export const PropertiesPanel: React.FC = () => {
     updateComponent(selectedComponent.id, { material: newMaterial })
   }
 
-  const handleArmLengthChange = (newArmLength: number) => {
+  const handleArmLengthChange = (arm: 'inlet' | 'outlet' | 'branch', newLength: number) => {
     if (selectedComponent.type === 'tee') {
-      updateComponent(selectedComponent.id, { armLength: newArmLength })
+      const currentArmLengths = selectedComponent.teeArmLengths || {
+        inlet: selectedComponent.armLength || 200,
+        outlet: selectedComponent.armLength || 200,
+        branch: selectedComponent.armLength || 200
+      }
+      updateComponent(selectedComponent.id, {
+        teeArmLengths: {
+          ...currentArmLengths,
+          [arm]: newLength
+        }
+      })
     }
   }
 
@@ -255,18 +265,47 @@ export const PropertiesPanel: React.FC = () => {
 
         {selectedComponent.type === 'tee' && (
           <div>
-            <label className="text-gray-300 text-sm block mb-1">
-              Schenkellänge (mm)
+            <label className="text-gray-300 text-sm block mb-2">
+              Schenkellängen (mm)
             </label>
-            <input
-              type="number"
-              value={selectedComponent.armLength || 200}
-              onChange={(e) => handleArmLengthChange(Number(e.target.value))}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-              min="50"
-              max="1000"
-              step="50"
-            />
+            <div className="space-y-2">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Eingang (A - links)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.teeArmLengths?.inlet || selectedComponent.armLength || 200}
+                  onChange={(e) => handleArmLengthChange('inlet', Number(e.target.value))}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                  min="50"
+                  max="1000"
+                  step="50"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Ausgang (B - rechts)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.teeArmLengths?.outlet || selectedComponent.armLength || 200}
+                  onChange={(e) => handleArmLengthChange('outlet', Number(e.target.value))}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                  min="50"
+                  max="1000"
+                  step="50"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Abzweigung (C - oben)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.teeArmLengths?.branch || selectedComponent.armLength || 200}
+                  onChange={(e) => handleArmLengthChange('branch', Number(e.target.value))}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                  min="50"
+                  max="1000"
+                  step="50"
+                />
+              </div>
+            </div>
           </div>
         )}
 

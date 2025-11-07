@@ -62,7 +62,9 @@ export const PipeRenderer: React.FC = () => {
                 key={component.id}
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
-                armLength={component.armLength || 200}
+                inletLength={component.teeArmLengths?.inlet || component.armLength || 200}
+                outletLength={component.teeArmLengths?.outlet || component.armLength || 200}
+                branchLength={component.teeArmLengths?.branch || component.armLength || 200}
                 position={position}
                 rotation={rotation}
                 selected={selected}

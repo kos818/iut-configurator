@@ -6,7 +6,9 @@ import { useDraggable } from '../../hooks/useDraggable'
 interface TeePipeProps {
   id: string
   diameter: number
-  armLength?: number // in mm
+  inletLength?: number // in mm
+  outletLength?: number // in mm
+  branchLength?: number // in mm
   position: [number, number, number]
   rotation: [number, number, number]
   selected: boolean
@@ -16,7 +18,9 @@ interface TeePipeProps {
 export const TeePipe: React.FC<TeePipeProps> = ({
   id,
   diameter,
-  armLength = 200, // default 200mm
+  inletLength = 200, // default 200mm
+  outletLength = 200,
+  branchLength = 200,
   position,
   rotation,
   selected,
@@ -26,7 +30,10 @@ export const TeePipe: React.FC<TeePipeProps> = ({
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
-  const length = armLength / 1000 // Convert mm to meters
+  // Calculate individual arm lengths in meters
+  const inletLengthM = inletLength / 1000
+  const outletLengthM = outletLength / 1000
+  const branchLengthM = branchLength / 1000
 
   const color = getMaterialColor(material, selected)
   const metalness = getMaterialMetalness(material)
@@ -34,15 +41,21 @@ export const TeePipe: React.FC<TeePipeProps> = ({
 
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
-      <mesh ref={meshRef}>
-        {/* Main horizontal pipe */}
-        <cylinderGeometry args={[outerRadius, outerRadius, length, 16]} />
+      {/* Inlet arm (left, -X direction) */}
+      <mesh ref={meshRef} position={[-inletLengthM / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[outerRadius, outerRadius, inletLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
-      {/* Vertical branch */}
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[outerRadius, outerRadius, length / 2, 16]} />
+      {/* Outlet arm (right, +X direction) */}
+      <mesh position={[outletLengthM / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[outerRadius, outerRadius, outletLengthM, 16]} />
+        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+      </mesh>
+
+      {/* Branch arm (top, +Y direction) */}
+      <mesh position={[0, branchLengthM / 2, 0]}>
+        <cylinderGeometry args={[outerRadius, outerRadius, branchLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
