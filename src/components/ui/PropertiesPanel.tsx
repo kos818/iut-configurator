@@ -1,4 +1,5 @@
 import React from 'react'
+import { Vector3, Euler } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 import { ConnectionMethod, ConnectionPoint } from '../../types'
@@ -30,7 +31,51 @@ export const PropertiesPanel: React.FC = () => {
 
   const handleLengthChange = (newLength: number) => {
     if (selectedComponent.type === 'straight') {
-      updateComponent(selectedComponent.id, { length: newLength })
+      const oldLength = selectedComponent.length || 1000
+      const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
+
+      // Check if any connection points are connected
+      const connectedCPs = selectedComponent.connectionPoints.filter((cp: ConnectionPoint) => cp.connectedTo !== null)
+
+      if (connectedCPs.length === 0) {
+        // No connections - just update length normally
+        updateComponent(selectedComponent.id, { length: newLength })
+      } else if (connectedCPs.length === 2) {
+        // Both ends connected - don't allow length change
+        // Could show a warning message here
+        return
+      } else {
+        // One end connected - adjust position to keep that end fixed
+        const connectedCP = connectedCPs[0]
+
+        // For straight pipes:
+        // Point A (inlet) is at (0, -length/2, 0) pointing down
+        // Point B (outlet) is at (0, length/2, 0) pointing up
+
+        // Determine which end is connected
+        const isInletConnected = connectedCP.label === 'A'
+
+        // Calculate position adjustment in component's local space
+        // If inlet (A, bottom) is connected, extend from outlet (B, top) - shift position down by half the length change
+        // If outlet (B, top) is connected, extend from inlet (A, bottom) - shift position up by half the length change
+        const localOffset = isInletConnected ? -lengthDiff / 2 : lengthDiff / 2
+
+        // Apply rotation to get world space offset
+        const worldOffset = new Vector3(0, localOffset, 0)
+        worldOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        const newPosition = selectedComponent.position.clone().add(worldOffset)
+
+        // Update both length and position
+        updateComponent(selectedComponent.id, {
+          length: newLength,
+          position: newPosition
+        })
+      }
     }
   }
 
