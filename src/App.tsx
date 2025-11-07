@@ -3,6 +3,7 @@ import { ComponentSelector } from './components/ui/ComponentSelector'
 import { PropertiesPanel } from './components/ui/PropertiesPanel'
 import { PriceDisplay } from './components/ui/PriceDisplay'
 import { Toolbar } from './components/ui/Toolbar'
+import { ValidationPanel } from './components/ui/ValidationPanel'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 function App() {
@@ -35,13 +36,17 @@ function App() {
         <aside className="w-80 flex flex-col gap-4">
           <PriceDisplay />
           <Toolbar />
+          <ValidationPanel />
 
           {/* Info panel */}
           <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex-1">
             <h3 className="text-white font-bold mb-2">Anleitung</h3>
             <ul className="text-gray-300 text-sm space-y-2">
               <li>• Komponente links auswählen zum Hinzufügen</li>
-              <li>• Auf Komponente klicken zum Auswählen</li>
+              <li>• <span className="font-semibold">Drag & Drop</span> zum Verschieben</li>
+              <li>• Nah an anderen Komponenten: <span className="text-orange-400">Snap-to-Connect</span></li>
+              <li>• DN-Werte müssen kompatibel sein</li>
+              <li>• Verbindungspunkte: Grün=verfügbar, Blau=verbunden, Orange=Snap</li>
               <li>• Material & Eigenschaften bearbeiten</li>
               <li>• Kamera mit rechter Maustaste drehen</li>
               <li>• Mausrad zum Zoomen</li>
