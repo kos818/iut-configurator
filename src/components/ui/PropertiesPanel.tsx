@@ -41,9 +41,81 @@ export const PropertiesPanel: React.FC = () => {
         // No connections - just update length normally
         updateComponent(selectedComponent.id, { length: newLength })
       } else if (connectedCPs.length === 2) {
-        // Both ends connected - don't allow length change
-        // Could show a warning message here
-        return
+        // Both ends connected - move both connected components
+        // Find the connected components for both ends
+        const inletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'A')
+        const outletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
+
+        if (!inletCP || !outletCP) return
+
+        // Calculate offset for each side in local space
+        // Inlet (A) at -length/2, Outlet (B) at +length/2
+        // When extending, A moves down (-Y), B moves up (+Y)
+        const halfLengthDiff = lengthDiff / 2
+
+        // Calculate world space offsets for each end
+        const inletOffset = new Vector3(0, -halfLengthDiff, 0)
+        inletOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        const outletOffset = new Vector3(0, halfLengthDiff, 0)
+        outletOffset.applyEuler(new Euler(
+          selectedComponent.rotation.x,
+          selectedComponent.rotation.y,
+          selectedComponent.rotation.z
+        ))
+
+        // Helper function to move a component and all connected components recursively
+        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
+          if (visitedIds.has(componentId)) return
+          visitedIds.add(componentId)
+
+          const comp = components.find((c) => c.id === componentId)
+          if (!comp) return
+
+          // Move this component
+          const newPos = comp.position.clone().add(offset)
+          updateComponent(componentId, { position: newPos })
+
+          // Recursively move all connected components except the original pipe
+          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
+            if (cp.connectedTo && cp.connectedTo !== inletCP?.id && cp.connectedTo !== outletCP?.id) {
+              // Find the component that owns this connection point
+              const connectedComp = components.find((c) =>
+                c.connectionPoints.some((p) => p.id === cp.connectedTo)
+              )
+              if (connectedComp && connectedComp.id !== selectedComponent.id) {
+                moveComponentTree(connectedComp.id, offset, visitedIds)
+              }
+            }
+          })
+        }
+
+        // Update the pipe length first
+        updateComponent(selectedComponent.id, { length: newLength })
+
+        // Move the inlet-connected component tree
+        if (inletCP.connectedTo) {
+          const inletConnectedComp = components.find((c) =>
+            c.connectionPoints.some((cp) => cp.id === inletCP.connectedTo)
+          )
+          if (inletConnectedComp) {
+            moveComponentTree(inletConnectedComp.id, inletOffset)
+          }
+        }
+
+        // Move the outlet-connected component tree
+        if (outletCP.connectedTo) {
+          const outletConnectedComp = components.find((c) =>
+            c.connectionPoints.some((cp) => cp.id === outletCP.connectedTo)
+          )
+          if (outletConnectedComp) {
+            moveComponentTree(outletConnectedComp.id, outletOffset)
+          }
+        }
       } else {
         // One end connected - adjust position to keep that end fixed
         const connectedCP = connectedCPs[0]
@@ -251,7 +323,7 @@ export const PropertiesPanel: React.FC = () => {
                             : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
                         }`}
                       >
-                        Geschweißt
+                        geschweißt
                       </button>
                       <button
                         onClick={() => handleConnectionMethodChange(cp.id, 'flanged')}
@@ -261,7 +333,7 @@ export const PropertiesPanel: React.FC = () => {
                             : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
                         }`}
                       >
-                        Geflansch
+                        geflanscht
                       </button>
                     </div>
                   </div>

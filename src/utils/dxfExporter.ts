@@ -90,6 +90,16 @@ FITTINGS
 6
 CONTINUOUS
 0
+LAYER
+2
+CONNECTIONS
+70
+0
+62
+5
+6
+CONTINUOUS
+0
 ENDTAB
 0
 ENDSEC
@@ -99,40 +109,52 @@ SECTION
 ENTITIES
 `
 
-  // Add each component as a 3D entity
+  // Add each component as a 2D entity (Top view projection: X-Y plane)
   components.forEach((component) => {
     const layer = component.type === 'straight' ? 'PIPES' : 'FITTINGS'
 
     // Convert position to mm (DXF typically uses mm)
+    // Project to 2D top view (X-Y plane, Z=0)
     const x = component.position.x * 1000
     const y = component.position.y * 1000
-    const z = component.position.z * 1000
 
     if (component.type === 'straight' && component.length) {
-      // Draw as 3D line/polyline
-      const length = component.length
-      const rotX = component.rotation.x
+      // Draw pipe as 2D line with proper rotation projection
+      const length = component.length / 1000 // Convert to meters
+
+      // Calculate start and end points of the pipe in 3D
+      // Pipe is along Y-axis in local coordinates: from (0, -length/2, 0) to (0, length/2, 0)
+      const startLocal = { x: 0, y: -length / 2, z: 0 }
+      const endLocal = { x: 0, y: length / 2, z: 0 }
+
+      // Apply rotation (simple 2D rotation around Z-axis for top view)
       const rotZ = component.rotation.z
+      const cosZ = Math.cos(rotZ)
+      const sinZ = Math.sin(rotZ)
 
-      // Calculate end point (simplified - assumes vertical pipe)
-      const endY = y + length * Math.cos(rotX) * Math.cos(rotZ)
+      // Rotate and translate to world coordinates
+      const startX = (startLocal.x * cosZ - startLocal.y * sinZ) * 1000 + x
+      const startY = (startLocal.x * sinZ + startLocal.y * cosZ) * 1000 + y
+      const endX = (endLocal.x * cosZ - endLocal.y * sinZ) * 1000 + x
+      const endY = (endLocal.x * sinZ + endLocal.y * cosZ) * 1000 + y
 
+      // Draw as 2D line (Z=0)
       dxf += `0
 LINE
 8
 ${layer}
 10
-${x.toFixed(3)}
+${startX.toFixed(3)}
 20
-${y.toFixed(3)}
+${startY.toFixed(3)}
 30
-${z.toFixed(3)}
+0.0
 11
-${x.toFixed(3)}
+${endX.toFixed(3)}
 21
 ${endY.toFixed(3)}
 31
-${z.toFixed(3)}
+0.0
 `
     } else {
       // Draw other components as circles (top view) with text annotation
@@ -145,7 +167,7 @@ ${x.toFixed(3)}
 20
 ${y.toFixed(3)}
 30
-${z.toFixed(3)}
+0.0
 40
 ${(component.dn / 2).toFixed(3)}
 0
@@ -157,7 +179,7 @@ ${x.toFixed(3)}
 20
 ${(y + component.dn).toFixed(3)}
 30
-${z.toFixed(3)}
+0.0
 40
 ${(component.dn * 0.3).toFixed(3)}
 1
@@ -175,12 +197,49 @@ ${(x + component.dn).toFixed(3)}
 20
 ${y.toFixed(3)}
 30
-${z.toFixed(3)}
+0.0
 40
 ${(component.dn * 0.2).toFixed(3)}
 1
 DN${component.dn}
 `
+  })
+
+  // Add connection lines
+  components.forEach((component) => {
+    component.connectionPoints.forEach((cp) => {
+      if (cp.connectedTo && cp.id < cp.connectedTo) { // Avoid duplicates
+        // Find the connected component
+        const connectedComp = components.find((c) =>
+          c.connectionPoints.some((p) => p.id === cp.connectedTo)
+        )
+        if (connectedComp) {
+          const x1 = component.position.x * 1000
+          const y1 = component.position.y * 1000
+          const x2 = connectedComp.position.x * 1000
+          const y2 = connectedComp.position.y * 1000
+
+          // Draw connection line
+          dxf += `0
+LINE
+8
+CONNECTIONS
+10
+${x1.toFixed(3)}
+20
+${y1.toFixed(3)}
+30
+0.0
+11
+${x2.toFixed(3)}
+21
+${y2.toFixed(3)}
+31
+0.0
+`
+        }
+      }
+    })
   })
 
   dxf += `0

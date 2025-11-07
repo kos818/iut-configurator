@@ -109,7 +109,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                     className="w-4 h-4"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 text-sm">Schweißverbindung</div>
+                    <div className="font-medium text-gray-900 text-sm">geschweißt</div>
                     <div className="text-xs text-gray-600">Direktes Verschweißen</div>
                   </div>
                 </label>
@@ -123,7 +123,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                     className="w-4 h-4"
                   />
                   <div>
-                    <div className="font-medium text-gray-900 text-sm">Verflanschung</div>
+                    <div className="font-medium text-gray-900 text-sm">geflanscht</div>
                     <div className="text-xs text-gray-600">Mit Gegenflansch (automatisch hinzugefügt)</div>
                   </div>
                 </label>

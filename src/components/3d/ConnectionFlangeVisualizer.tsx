@@ -41,12 +41,17 @@ export const ConnectionFlangeVisualizer: React.FC<ConnectionFlangeVisualizerProp
         const flangeRadius = pipeRadius * 2
         const flangeThickness = pipeRadius * 0.4
 
+        // Position flange slightly outward from the connection point (at the element's end)
+        // Move by half thickness in the direction of the connection point
+        const flangeOffset = direction.clone().multiplyScalar(flangeThickness / 2)
+        const flangePos = worldPos.clone().add(flangeOffset)
+
         const color = getMaterialColor(component.material, false)
         const metalness = getMaterialMetalness(component.material)
         const roughness = getMaterialRoughness(component.material)
 
         return (
-          <group key={cp.id} position={[worldPos.x, worldPos.y, worldPos.z]} rotation={[euler.x, euler.y, euler.z]}>
+          <group key={cp.id} position={[flangePos.x, flangePos.y, flangePos.z]} rotation={[euler.x, euler.y, euler.z]}>
             {/* Flange disk */}
             <mesh>
               <cylinderGeometry args={[flangeRadius, flangeRadius, flangeThickness, 24]} />

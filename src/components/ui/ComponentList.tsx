@@ -56,7 +56,7 @@ export const ComponentList: React.FC = () => {
                     <div className={`text-xs ${isSelected ? 'text-blue-200' : 'text-gray-500'}`}>
                       Verbindungen: {connectedCount}/{totalCount}
                       {weldedCount > 0 && ` • ${weldedCount} geschweißt`}
-                      {flangedCount > 0 && ` • ${flangedCount} geflansch`}
+                      {flangedCount > 0 && ` • ${flangedCount} geflanscht`}
                     </div>
                   </div>
                 </div>
