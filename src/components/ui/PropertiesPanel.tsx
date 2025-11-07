@@ -1,6 +1,7 @@
 import React from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
+import { ConnectionMethod, ConnectionPoint } from '../../types'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -47,6 +48,28 @@ export const PropertiesPanel: React.FC = () => {
     const newRotation = selectedComponent.rotation.clone()
     newRotation[axis] = (value * Math.PI) / 180 // Convert to radians
     updateComponent(selectedComponent.id, { rotation: newRotation })
+  }
+
+  const handleConnectionMethodChange = (cpId: string, newMethod: ConnectionMethod) => {
+    // Update the connection method for this connection point
+    const updatedCPs = selectedComponent.connectionPoints.map((cp: ConnectionPoint) =>
+      cp.id === cpId ? { ...cp, connectionMethod: newMethod } : cp
+    )
+    updateComponent(selectedComponent.id, { connectionPoints: updatedCPs })
+
+    // Also update the connected component's connection point
+    const connectedCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.id === cpId)
+    if (connectedCP && connectedCP.connectedTo) {
+      const connectedComponent = components.find((c) =>
+        c.connectionPoints.some((cp) => cp.id === connectedCP.connectedTo)
+      )
+      if (connectedComponent) {
+        const updatedConnectedCPs = connectedComponent.connectionPoints.map((cp: ConnectionPoint) =>
+          cp.id === connectedCP.connectedTo ? { ...cp, connectionMethod: newMethod } : cp
+        )
+        updateComponent(connectedComponent.id, { connectionPoints: updatedConnectedCPs })
+      }
+    }
   }
 
   return (
@@ -146,6 +169,60 @@ export const PropertiesPanel: React.FC = () => {
                   className="w-full bg-gray-700 text-white px-2 py-1 rounded text-sm"
                   step="15"
                 />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Connection Points */}
+        <div>
+          <label className="text-gray-300 text-sm block mb-2">Verbindungspunkte</label>
+          <div className="space-y-2">
+            {selectedComponent.connectionPoints.map((cp: ConnectionPoint) => (
+              <div
+                key={cp.id}
+                className={`p-2 rounded border ${
+                  cp.connectedTo
+                    ? 'border-blue-500 bg-blue-900 bg-opacity-20'
+                    : 'border-gray-600 bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-white text-sm font-semibold">
+                    {cp.label} - {cp.type}
+                  </div>
+                  <div className="text-xs text-gray-400">DN{cp.dn}</div>
+                </div>
+
+                {cp.connectedTo ? (
+                  <div className="mt-2">
+                    <div className="text-xs text-gray-400 mb-1">Verbindungsmethode:</div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleConnectionMethodChange(cp.id, 'welded')}
+                        className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                          cp.connectionMethod === 'welded'
+                            ? 'bg-blue-600 text-white font-semibold'
+                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                        }`}
+                      >
+                        Geschweißt
+                      </button>
+                      <button
+                        onClick={() => handleConnectionMethodChange(cp.id, 'flanged')}
+                        className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                          cp.connectionMethod === 'flanged'
+                            ? 'bg-blue-600 text-white font-semibold'
+                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                        }`}
+                      >
+                        Geflansch
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 italic">Nicht verbunden</div>
+                )}
               </div>
             ))}
           </div>
