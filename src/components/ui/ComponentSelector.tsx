@@ -4,7 +4,7 @@ import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates } from '../../data/componentTemplates'
 import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent, ConnectionMethod } from '../../types'
 import { ConnectionDialog } from './ConnectionDialog'
-import { getWorldPosition, generateConnectionPoints } from '../../utils/connectionHelpers'
+import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
 import { calculateConnectionRotation } from '../../utils/rotationHelpers'
 
 export const ComponentSelector: React.FC = () => {
@@ -73,8 +73,11 @@ export const ComponentSelector: React.FC = () => {
         const selectedCPDirection = selectedCP ? selectedCP.direction : new Vector3(0, 1, 0)
         const selectedCPPosition = selectedCP ? selectedCP.position : new Vector3(0, 0, 0)
 
+        // Get world direction of target connection point
+        const targetWorldDirection = getWorldDirection(targetComponent, targetCP)
+
         // Calculate rotation to align new component with target
-        const rotation = calculateConnectionRotation(targetCP.direction, selectedCPDirection)
+        const rotation = calculateConnectionRotation(targetWorldDirection, selectedCPDirection)
 
         // Apply rotation to the connection point position to get the offset in world space
         // We need to rotate the CP position by the calculated rotation
@@ -94,9 +97,7 @@ export const ComponentSelector: React.FC = () => {
           const flangeSpacing = flangeThickness * 2
 
           // Get the direction from target CP to new component (opposite of target CP direction)
-          const targetDirection = targetCP.direction.clone()
-          const targetRotation = new Euler(targetComponent.rotation.x, targetComponent.rotation.y, targetComponent.rotation.z)
-          targetDirection.applyEuler(targetRotation)
+          const targetDirection = getWorldDirection(targetComponent, targetCP)
 
           // Move the component away by the flange spacing
           const spacingOffset = targetDirection.clone().multiplyScalar(flangeSpacing)

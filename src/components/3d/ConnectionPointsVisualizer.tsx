@@ -1,7 +1,7 @@
 import React from 'react'
 import { Text } from '@react-three/drei'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { getWorldPosition } from '../../utils/connectionHelpers'
+import { getWorldPosition, getWorldDirection } from '../../utils/connectionHelpers'
 
 export const ConnectionPointsVisualizer: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -14,8 +14,9 @@ export const ConnectionPointsVisualizer: React.FC = () => {
         const isSelected = component.id === selectedComponent
 
         return component.connectionPoints.map((cp) => {
-          // Get world position of connection point
+          // Get world position and direction of connection point
           const worldPos = getWorldPosition(component, cp)
+          const worldDir = getWorldDirection(component, cp)
           const isConnected = cp.connectedTo !== null
           const isSnapTarget = snapTargets.includes(cp.id)
 
@@ -55,13 +56,13 @@ export const ConnectionPointsVisualizer: React.FC = () => {
               {/* Direction indicator (small cone) */}
               <mesh
                 position={[
-                  worldPos.x + cp.direction.x * 0.05,
-                  worldPos.y + cp.direction.y * 0.05,
-                  worldPos.z + cp.direction.z * 0.05,
+                  worldPos.x + worldDir.x * 0.05,
+                  worldPos.y + worldDir.y * 0.05,
+                  worldPos.z + worldDir.z * 0.05,
                 ]}
                 rotation={[
-                  Math.atan2(cp.direction.y, Math.sqrt(cp.direction.x ** 2 + cp.direction.z ** 2)),
-                  Math.atan2(cp.direction.x, cp.direction.z),
+                  Math.atan2(worldDir.y, Math.sqrt(worldDir.x ** 2 + worldDir.z ** 2)),
+                  Math.atan2(worldDir.x, worldDir.z),
                   0,
                 ]}
               >

@@ -206,6 +206,14 @@ export const getWorldPosition = (component: PipeComponent, connectionPoint: Conn
   return worldPos
 }
 
+// Get world direction of a connection point
+export const getWorldDirection = (component: PipeComponent, connectionPoint: ConnectionPoint): Vector3 => {
+  // Apply component's rotation to the connection point's direction
+  const worldDir = connectionPoint.direction.clone()
+  worldDir.applyEuler(new Euler(component.rotation.x, component.rotation.y, component.rotation.z))
+  return worldDir.normalize()
+}
+
 // Find nearby connection points for snapping
 export const findNearbyConnectionPoints = (
   components: PipeComponent[],
