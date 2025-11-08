@@ -140,7 +140,59 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       break
     }
 
+    case 'cross': {
+      // Cross piece with 4 connection points (inlet, outlet, branch, branch2)
+      const armLength = radius * 4 // 4x radius for each arm
+
+      // Inlet (left, Arm A)
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(-armLength, 0, 0),
+        direction: new Vector3(-1, 0, 0),
+        dn,
+        connectedTo: null,
+      })
+      // Outlet (right, Arm B)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(armLength, 0, 0),
+        direction: new Vector3(1, 0, 0),
+        dn,
+        connectedTo: null,
+      })
+      // Branch (top, Arm C)
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(0, armLength, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+      // Branch2 (bottom, Arm D)
+      points.push({
+        id: `${component.id}-branch2`,
+        componentId: component.id,
+        type: 'branch2',
+        label: labels[3], // D
+        position: new Vector3(0, -armLength, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
     case 'valve':
+    case 'check_valve':
     case 'flange': {
       const bodyLength = radius * 3
       points.push({
@@ -160,6 +212,22 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         label: labels[1], // B
         position: new Vector3(0, bodyLength / 2, 0),
         direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'cap': {
+      // Cap has only one connection point (inlet)
+      const capHeight = radius * 1.5
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -capHeight / 2, 0),
+        direction: new Vector3(0, -1, 0),
         dn,
         connectedTo: null,
       })

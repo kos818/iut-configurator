@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 
-export type PipeComponentType = 'straight' | 'elbow' | 'tee' | 'valve' | 'flange' | 'reducer'
+export type PipeComponentType = 'straight' | 'elbow' | 'tee' | 'cross' | 'valve' | 'check_valve' | 'flange' | 'reducer' | 'cap'
 export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
 
 // DN (Diameter Nominal) values
@@ -13,7 +13,7 @@ export type ConnectionMethod = 'welded' | 'flanged'
 export interface ConnectionPoint {
   id: string
   componentId: string
-  type: 'inlet' | 'outlet' | 'branch' // branch for T-pieces
+  type: 'inlet' | 'outlet' | 'branch' | 'branch2' | 'branch3' // branch for T-pieces, branch2/3 for cross pieces
   label: string // A, B, C, etc.
   position: Vector3 // relative to component
   direction: Vector3 // normal vector showing connection direction
@@ -66,6 +66,7 @@ export interface ComponentTemplate {
   type: PipeComponentType
   name: string
   description: string
+  group: string // Component group for organization
   defaultDN: DNValue
   defaultLength?: number
   defaultAngle?: number
@@ -77,7 +78,7 @@ export interface ComponentTemplate {
   availableDNs: DNValue[]
   material: MaterialType
   // Define connection points (relative positions will be calculated based on DN)
-  connectionPointTypes: Array<'inlet' | 'outlet' | 'branch'>
+  connectionPointTypes: Array<'inlet' | 'outlet' | 'branch' | 'branch2' | 'branch3'>
 }
 
 export interface ProjectData {

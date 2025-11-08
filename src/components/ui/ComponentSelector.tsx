@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Vector3, Euler } from 'three'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { componentTemplates } from '../../data/componentTemplates'
+import { componentTemplates, componentGroupNames, componentGroupDescriptions, ComponentGroup } from '../../data/componentTemplates'
 import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent, ConnectionMethod } from '../../types'
 import { ConnectionDialog } from './ConnectionDialog'
 import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
@@ -17,6 +18,10 @@ export const ComponentSelector: React.FC = () => {
 
   const [dialogTemplate, setDialogTemplate] = useState<ComponentTemplate | null>(null)
   const [preselectedConnectionPointId, setPreselectedConnectionPointId] = useState<string | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<ComponentGroup | null>(null)
+
+  // Get unique groups from templates
+  const groups = Array.from(new Set(componentTemplates.map(t => t.group))) as ComponentGroup[]
 
   // Auto-open dialog when quick add is triggered
   useEffect(() => {
@@ -174,25 +179,77 @@ export const ComponentSelector: React.FC = () => {
     setPreselectedConnectionPointId(null)
   }
 
+  // Get filtered templates based on selected group
+  const filteredTemplates = selectedGroup
+    ? componentTemplates.filter(t => t.group === selectedGroup)
+    : []
+
   return (
     <>
       <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-        <h2 className="text-xl font-bold text-white mb-4">Komponenten</h2>
-        <div className="space-y-2">
-          {componentTemplates.map((template, index) => (
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          {selectedGroup && (
             <button
-              key={index}
-              onClick={() => handleComponentClick(template)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded transition-colors text-left"
+              onClick={() => setSelectedGroup(null)}
+              className="text-gray-400 hover:text-white transition-colors"
+              title="Zurück zur Gruppenauswahl"
             >
-              <div className="font-semibold">{template.name}</div>
-              <div className="text-sm text-gray-300">{template.description}</div>
-              <div className="text-sm text-green-300 mt-1">
-                ab {template.basePrice.toFixed(2)} €
-              </div>
+              <ChevronLeft size={24} />
             </button>
-          ))}
-        </div>
+          )}
+          <span>
+            {selectedGroup ? componentGroupNames[selectedGroup] : 'Komponenten'}
+          </span>
+        </h2>
+
+        {/* Show groups if no group selected */}
+        {!selectedGroup && (
+          <div className="space-y-2">
+            {groups.map((group) => (
+              <button
+                key={group}
+                onClick={() => setSelectedGroup(group)}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-4 rounded-lg transition-all text-left flex items-center justify-between group shadow-md"
+              >
+                <div className="flex-1">
+                  <div className="font-bold text-lg">{componentGroupNames[group]}</div>
+                  <div className="text-sm text-blue-200 mt-1">
+                    {componentGroupDescriptions[group]}
+                  </div>
+                  <div className="text-xs text-blue-300 mt-1">
+                    {componentTemplates.filter(t => t.group === group).length} Komponenten
+                  </div>
+                </div>
+                <ChevronRight
+                  size={24}
+                  className="text-blue-300 group-hover:text-white group-hover:translate-x-1 transition-all"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Show components when group is selected */}
+        {selectedGroup && (
+          <div className="space-y-2">
+            <div className="text-sm text-gray-400 mb-3">
+              {componentGroupDescriptions[selectedGroup]}
+            </div>
+            {filteredTemplates.map((template, index) => (
+              <button
+                key={index}
+                onClick={() => handleComponentClick(template)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded transition-colors text-left shadow-sm"
+              >
+                <div className="font-semibold">{template.name}</div>
+                <div className="text-sm text-gray-300">{template.description}</div>
+                <div className="text-sm text-green-300 mt-1">
+                  ab {template.basePrice.toFixed(2)} €
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Connection Dialog */}

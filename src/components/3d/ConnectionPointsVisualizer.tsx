@@ -239,8 +239,9 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                 <Html
                   position={[worldPos.x, worldPos.y + 0.15, worldPos.z]}
                   center
-                  distanceFactor={10}
                   style={{ pointerEvents: 'auto' }}
+                  transform
+                  sprite
                 >
                   {menuOpenForCP === cp.id ? (
                     <QuickAddMenu
