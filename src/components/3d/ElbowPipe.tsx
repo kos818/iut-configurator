@@ -53,8 +53,9 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   const outletCenterY = (outletLengthM / 2) * outletDirY
 
   // Outlet arm rotation to align cylinder (default: +Y direction) with outlet direction
-  // To rotate vector (0, 1) to (sin(θ), -cos(θ)), we need rotation: θ + π
-  const outletRotation = angleInRadians + Math.PI
+  // Cylinder axis is along +Y (0, 1), we want it along (sin(θ), -cos(θ))
+  // Rotation around Z-axis to align: atan2(x, y) where direction is (x, y)
+  const outletRotation = Math.atan2(outletDirX, outletDirY)
 
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
