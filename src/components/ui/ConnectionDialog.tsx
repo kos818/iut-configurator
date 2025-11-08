@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Link2, Circle } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { ComponentTemplate, ConnectionMethod } from '../../types'
@@ -17,6 +17,10 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   preselectedConnectionPointId = null,
 }) => {
   const components = useConfiguratorStore((state) => state.components)
+  const setDialogSelectableConnectionPoints = useConfiguratorStore((state) => state.setDialogSelectableConnectionPoints)
+  const setDialogSelectedConnectionPoint = useConfiguratorStore((state) => state.setDialogSelectedConnectionPoint)
+  const dialogSelectedConnectionPoint = useConfiguratorStore((state) => state.dialogSelectedConnectionPoint)
+
   const [selectedConnectionPoint, setSelectedConnectionPoint] = useState<string | null>(preselectedConnectionPointId)
   const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>('welded')
   const [newComponentCPIndex, setNewComponentCPIndex] = useState<number>(0) // Which CP of the new component to use
@@ -31,6 +35,30 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
         componentId: component.id,
       }))
   )
+
+  // Set selectable connection points in store when dialog opens
+  useEffect(() => {
+    const cpIds = availableConnectionPoints.map((cp) => cp.id)
+    setDialogSelectableConnectionPoints(cpIds)
+
+    // Cleanup when dialog closes
+    return () => {
+      setDialogSelectableConnectionPoints([])
+      setDialogSelectedConnectionPoint(null)
+    }
+  }, []) // Only run on mount/unmount
+
+  // Sync selected connection point from store (for 3D clicks)
+  useEffect(() => {
+    if (dialogSelectedConnectionPoint && dialogSelectedConnectionPoint !== selectedConnectionPoint) {
+      setSelectedConnectionPoint(dialogSelectedConnectionPoint)
+    }
+  }, [dialogSelectedConnectionPoint])
+
+  // Update store when local selection changes
+  useEffect(() => {
+    setDialogSelectedConnectionPoint(selectedConnectionPoint)
+  }, [selectedConnectionPoint])
 
   const handleConfirm = () => {
     if (selectedConnectionPoint) {
@@ -70,9 +98,21 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 
         {/* Content */}
         <div className="p-4 overflow-y-auto flex-1">
-          <p className="text-sm text-gray-600 mb-4">
-            Möchten Sie die neue Komponente an einen bestehenden Verbindungspunkt anschließen?
-          </p>
+          {preselectedConnectionPointId ? (
+            <div className="mb-4 p-3 border-2 border-blue-400 bg-blue-50 rounded-lg">
+              <p className="text-sm font-semibold text-blue-900 mb-2">
+                ✓ Ausgewählte Komponente erkannt!
+              </p>
+              <p className="text-sm text-blue-800">
+                Möchten Sie die neue Komponente an die aktuell ausgewählte Komponente anschließen?
+                Wählen Sie unten einen Verbindungspunkt oder platzieren Sie die Komponente frei.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600 mb-4">
+              Möchten Sie die neue Komponente an einen bestehenden Verbindungspunkt anschließen?
+            </p>
+          )}
 
           {/* Option: No connection */}
           <div className="mb-4">
@@ -171,36 +211,48 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                 Verfügbare Verbindungspunkte:
               </div>
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {availableConnectionPoints.map((cp) => (
-                  <label
-                    key={cp.id}
-                    className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
-                  >
-                    <input
-                      type="radio"
-                      name="connection"
-                      value={cp.id}
-                      checked={selectedConnectionPoint === cp.id}
-                      onChange={() => setSelectedConnectionPoint(cp.id)}
-                      className="w-4 h-4"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Circle className="w-3 h-3 text-green-500" fill="currentColor" />
-                        <span className="font-bold text-blue-600">{cp.label}</span>
-                        <span className="text-sm text-gray-600">
-                          {cp.componentType.charAt(0).toUpperCase() + cp.componentType.slice(1)}
-                        </span>
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                          {cp.type}
-                        </span>
+                {availableConnectionPoints.map((cp) => {
+                  const isPreselected = cp.id === preselectedConnectionPointId
+                  return (
+                    <label
+                      key={cp.id}
+                      className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                        isPreselected
+                          ? 'border-blue-500 bg-blue-100 hover:bg-blue-150'
+                          : 'border-gray-300 hover:bg-blue-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="connection"
+                        value={cp.id}
+                        checked={selectedConnectionPoint === cp.id}
+                        onChange={() => setSelectedConnectionPoint(cp.id)}
+                        className="w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {isPreselected && (
+                            <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded font-semibold">
+                              VORGESCHLAGEN
+                            </span>
+                          )}
+                          <Circle className="w-3 h-3 text-green-500" fill="currentColor" />
+                          <span className="font-bold text-blue-600">{cp.label}</span>
+                          <span className="text-sm text-gray-600">
+                            {cp.componentType.charAt(0).toUpperCase() + cp.componentType.slice(1)}
+                          </span>
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                            {cp.type}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          DN{cp.dn} • Komponente ID: {cp.componentId.slice(-8)}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        DN{cp.dn} • Komponente ID: {cp.componentId.slice(-8)}
-                      </div>
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  )
+                })}
               </div>
             </>
           )}

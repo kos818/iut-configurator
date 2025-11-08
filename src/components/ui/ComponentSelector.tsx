@@ -11,6 +11,7 @@ export const ComponentSelector: React.FC = () => {
   const addComponent = useConfiguratorStore((state) => state.addComponent)
   const updateComponent = useConfiguratorStore((state) => state.updateComponent)
   const components = useConfiguratorStore((state) => state.components)
+  const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
   const quickAddConnectionPointId = useConfiguratorStore((state) => state.quickAddConnectionPointId)
   const setQuickAddConnectionPoint = useConfiguratorStore((state) => state.setQuickAddConnectionPoint)
 
@@ -32,6 +33,17 @@ export const ComponentSelector: React.FC = () => {
     if (components.length === 0) {
       addComponent(template, new Vector3(0, 0, 0))
       return
+    }
+
+    // Check if there's a selected component with available connection points
+    const selectedComp = components.find((c) => c.id === selectedComponent)
+    if (selectedComp) {
+      const availableCPs = selectedComp.connectionPoints.filter((cp) => cp.connectedTo === null)
+
+      // If selected component has available connection points, preselect the first one
+      if (availableCPs.length > 0) {
+        setPreselectedConnectionPointId(availableCPs[0].id)
+      }
     }
 
     // Show dialog to choose connection

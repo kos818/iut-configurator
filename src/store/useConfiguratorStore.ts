@@ -25,6 +25,8 @@ interface ConfiguratorState {
   snapTargets: string[] // Connection point IDs that are potential snap targets
   isDragging: boolean // Track if user is dragging an object
   quickAddConnectionPointId: string | null // Connection point ID for quick add
+  dialogSelectableConnectionPoints: string[] // Connection point IDs that can be selected in the dialog
+  dialogSelectedConnectionPoint: string | null // Currently selected connection point in the dialog
   projectSettings: {
     isConfigured: boolean
     defaultMaterial: string
@@ -40,6 +42,8 @@ interface ConfiguratorState {
   setSnapTargets: (targets: string[]) => void
   setIsDragging: (isDragging: boolean) => void
   setQuickAddConnectionPoint: (connectionPointId: string | null) => void
+  setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => void
+  setDialogSelectedConnectionPoint: (connectionPointId: string | null) => void
   setProjectSettings: (material: string, dn: number) => void
   calculateTotalPrice: () => void
   clearAll: () => void
@@ -59,6 +63,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   snapTargets: [],
   isDragging: false,
   quickAddConnectionPointId: null,
+  dialogSelectableConnectionPoints: [],
+  dialogSelectedConnectionPoint: null,
   projectSettings: {
     isConfigured: false,
     defaultMaterial: 'steel',
@@ -194,6 +200,14 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   setQuickAddConnectionPoint: (connectionPointId: string | null) => {
     set({ quickAddConnectionPointId: connectionPointId })
+  },
+
+  setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => {
+    set({ dialogSelectableConnectionPoints: connectionPointIds })
+  },
+
+  setDialogSelectedConnectionPoint: (connectionPointId: string | null) => {
+    set({ dialogSelectedConnectionPoint: connectionPointId })
   },
 
   setProjectSettings: (material: string, dn: number) => {
