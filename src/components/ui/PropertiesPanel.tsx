@@ -41,28 +41,25 @@ export const PropertiesPanel: React.FC = () => {
         // No connections - just update length normally
         updateComponent(selectedComponent.id, { length: newLength })
       } else if (connectedCPs.length === 2) {
-        // Both ends connected - move both connected components
+        // Both ends connected - grow from outlet (top), keep inlet (bottom) fixed
         // Find the connected components for both ends
         const inletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'A')
         const outletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
 
         if (!inletCP || !outletCP) return
 
-        // Calculate offset for each side in local space
-        // Inlet (A) at -length/2, Outlet (B) at +length/2
-        // When extending, A moves down (-Y), B moves up (+Y)
-        const halfLengthDiff = lengthDiff / 2
-
-        // Calculate world space offsets for each end
-        const inletOffset = new Vector3(0, -halfLengthDiff, 0)
-        inletOffset.applyEuler(new Euler(
+        // The entire length change happens at the outlet (top) end
+        // Inlet (bottom) stays fixed
+        const outletOffset = new Vector3(0, lengthDiff, 0)
+        outletOffset.applyEuler(new Euler(
           selectedComponent.rotation.x,
           selectedComponent.rotation.y,
           selectedComponent.rotation.z
         ))
 
-        const outletOffset = new Vector3(0, halfLengthDiff, 0)
-        outletOffset.applyEuler(new Euler(
+        // The pipe itself shifts up by half the length change to keep inlet fixed
+        const pipeOffset = new Vector3(0, lengthDiff / 2, 0)
+        pipeOffset.applyEuler(new Euler(
           selectedComponent.rotation.x,
           selectedComponent.rotation.y,
           selectedComponent.rotation.z
@@ -94,20 +91,16 @@ export const PropertiesPanel: React.FC = () => {
           })
         }
 
-        // Update the pipe length first
-        updateComponent(selectedComponent.id, { length: newLength })
+        // Update the pipe length and position
+        const newPipePosition = selectedComponent.position.clone().add(pipeOffset)
+        updateComponent(selectedComponent.id, {
+          length: newLength,
+          position: newPipePosition
+        })
 
-        // Move the inlet-connected component tree
-        if (inletCP.connectedTo) {
-          const inletConnectedComp = components.find((c) =>
-            c.connectionPoints.some((cp) => cp.id === inletCP.connectedTo)
-          )
-          if (inletConnectedComp) {
-            moveComponentTree(inletConnectedComp.id, inletOffset)
-          }
-        }
+        // Inlet stays fixed (no movement needed)
 
-        // Move the outlet-connected component tree
+        // Move the outlet-connected component tree by the full length change
         if (outletCP.connectedTo) {
           const outletConnectedComp = components.find((c) =>
             c.connectionPoints.some((cp) => cp.id === outletCP.connectedTo)

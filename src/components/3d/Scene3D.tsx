@@ -30,6 +30,59 @@ export const Scene3D: React.FC = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const components = useConfiguratorStore((state) => state.components)
   const [gridSize, setGridSize] = React.useState(20)
+  const [gridCellSize, setGridCellSize] = React.useState(0.5)
+
+  // Update grid based on camera distance (zoom level) and components
+  useEffect(() => {
+    if (!controlsRef.current) return
+
+    const updateGrid = () => {
+      if (!controlsRef.current) return
+
+      const controls = controlsRef.current
+      const camera = controls.object
+      const distance = camera.position.distanceTo(controls.target)
+
+      // Adjust cell size based on camera distance (zoom level)
+      // Closer = smaller cells, farther = larger cells
+      const baseCellSize = Math.max(0.1, Math.min(2.0, distance / 10))
+      setGridCellSize(baseCellSize)
+
+      // Adjust grid size based on components or camera distance
+      let newGridSize = Math.max(20, distance * 2)
+
+      if (components.length > 0) {
+        // Calculate bounding box to determine optimal grid size
+        const bbox = new Box3()
+        components.forEach((component) => {
+          bbox.expandByPoint(component.position)
+          component.connectionPoints.forEach((cp) => {
+            const worldPos = getWorldPosition(component, cp)
+            bbox.expandByPoint(worldPos)
+          })
+        })
+
+        const size = new Vector3()
+        bbox.getSize(size)
+        const maxDim = Math.max(size.x, size.y, size.z)
+
+        // Grid should be at least 2x the bounding box size
+        newGridSize = Math.max(newGridSize, maxDim * 3)
+      }
+
+      setGridSize(Math.ceil(newGridSize))
+    }
+
+    // Update grid initially and on control changes
+    updateGrid()
+
+    const controls = controlsRef.current
+    controls.addEventListener('change', updateGrid)
+
+    return () => {
+      controls.removeEventListener('change', updateGrid)
+    }
+  }, [components, controlsRef.current])
 
   // Automatically frame all components when they change
   useEffect(() => {
@@ -188,14 +241,14 @@ export const Scene3D: React.FC = () => {
         {/* Environment for reflections */}
         <Environment preset="city" />
 
-        {/* Grid */}
+        {/* Grid - adapts to zoom level and components */}
         <Grid
           args={[gridSize, gridSize]}
-          cellSize={0.5}
-          cellThickness={0.5}
+          cellSize={gridCellSize}
+          cellThickness={gridCellSize * 0.5}
           cellColor="#6f9fd8"
-          sectionSize={2}
-          sectionThickness={1}
+          sectionSize={gridCellSize * 4}
+          sectionThickness={gridCellSize}
           sectionColor="#2563eb"
           fadeDistance={Math.max(25, gridSize * 1.5)}
           fadeStrength={1}
