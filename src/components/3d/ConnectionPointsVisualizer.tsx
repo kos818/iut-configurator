@@ -1,5 +1,6 @@
-import React from 'react'
-import { Text } from '@react-three/drei'
+import React, { useState } from 'react'
+import { Text, Html } from '@react-three/drei'
+import { Plus } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getWorldPosition, getWorldDirection } from '../../utils/connectionHelpers'
 
@@ -7,6 +8,9 @@ export const ConnectionPointsVisualizer: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
   const snapTargets = useConfiguratorStore((state) => state.snapTargets)
+  const setQuickAddConnectionPoint = useConfiguratorStore((state) => state.setQuickAddConnectionPoint)
+
+  const [hoveredCP, setHoveredCP] = useState<string | null>(null)
 
   return (
     <group>
@@ -39,10 +43,24 @@ export const ConnectionPointsVisualizer: React.FC = () => {
             color = '#ffff00' // yellow
           }
 
+          const isHovered = hoveredCP === cp.id
+
           return (
             <group key={cp.id}>
               {/* Connection point sphere */}
-              <mesh position={[worldPos.x, worldPos.y, worldPos.z]}>
+              <mesh
+                position={[worldPos.x, worldPos.y, worldPos.z]}
+                onPointerEnter={(e) => {
+                  e.stopPropagation()
+                  if (!isConnected) {
+                    setHoveredCP(cp.id)
+                  }
+                }}
+                onPointerLeave={(e) => {
+                  e.stopPropagation()
+                  setHoveredCP(null)
+                }}
+              >
                 <sphereGeometry args={[size, 16, 16]} />
                 <meshStandardMaterial
                   color={color}
@@ -88,6 +106,35 @@ export const ConnectionPointsVisualizer: React.FC = () => {
               >
                 {cp.label}
               </Text>
+
+              {/* Plus button on hover - only for unconnected points */}
+              {isHovered && !isConnected && (
+                <Html
+                  position={[worldPos.x, worldPos.y + 0.15, worldPos.z]}
+                  center
+                  distanceFactor={10}
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setQuickAddConnectionPoint(cp.id)
+                      setHoveredCP(null)
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-110"
+                    title={`Komponente an ${cp.label} hinzufügen`}
+                    style={{
+                      cursor: 'pointer',
+                      border: '2px solid white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </Html>
+              )}
             </group>
           )
         })
