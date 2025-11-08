@@ -1,12 +1,27 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { Trash2, Circle } from 'lucide-react'
+import { Trash2, Circle, Plus } from 'lucide-react'
 
 export const ComponentList: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
   const removeComponent = useConfiguratorStore((state) => state.removeComponent)
+  const setQuickAddConnectionPoint = useConfiguratorStore((state) => state.setQuickAddConnectionPoint)
+
+  const [hoveredComponent, setHoveredComponent] = useState<string | null>(null)
+  const [showQuickAdd, setShowQuickAdd] = useState<string | null>(null)
+
+  const handleQuickAdd = (componentId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowQuickAdd(componentId)
+  }
+
+  const handleConnectionPointClick = (connectionPointId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setQuickAddConnectionPoint(connectionPointId)
+    setShowQuickAdd(null)
+  }
 
   if (components.length === 0) {
     return (
@@ -23,17 +38,21 @@ export const ComponentList: React.FC = () => {
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {components.map((component, index) => {
           const isSelected = component.id === selectedComponent
+          const isHovered = hoveredComponent === component.id
           const connectedCount = component.connectionPoints.filter(cp => cp.connectedTo !== null).length
           const totalCount = component.connectionPoints.length
           const weldedCount = component.connectionPoints.filter(cp => cp.connectionMethod === 'welded').length
           const flangedCount = component.connectionPoints.filter(cp => cp.connectionMethod === 'flanged').length
+          const hasAvailableConnections = component.connectionPoints.some(cp => cp.connectedTo === null)
 
           return (
             <div
               key={component.id}
               onClick={() => selectComponent(component.id)}
+              onMouseEnter={() => setHoveredComponent(component.id)}
+              onMouseLeave={() => setHoveredComponent(null)}
               className={`
-                p-3 rounded cursor-pointer transition-all
+                p-3 rounded cursor-pointer transition-all relative
                 ${isSelected
                   ? 'bg-blue-600 ring-2 ring-blue-400 shadow-lg'
                   : 'bg-gray-700 hover:bg-gray-600'
@@ -60,23 +79,73 @@ export const ComponentList: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    removeComponent(component.id)
-                  }}
-                  className={`
-                    p-1.5 rounded transition-colors
-                    ${isSelected
-                      ? 'hover:bg-blue-700 text-blue-100'
-                      : 'hover:bg-gray-600 text-gray-400'
-                    }
-                  `}
-                  title="Komponente löschen"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* Quick Add Button - shown on hover if there are available connections */}
+                  {isHovered && hasAvailableConnections && (
+                    <button
+                      onClick={(e) => handleQuickAdd(component.id, e)}
+                      className={`
+                        p-1.5 rounded transition-colors
+                        ${isSelected
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-green-500 hover:bg-green-600 text-white'
+                        }
+                      `}
+                      title="Komponente hinzufügen"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeComponent(component.id)
+                    }}
+                    className={`
+                      p-1.5 rounded transition-colors
+                      ${isSelected
+                        ? 'hover:bg-blue-700 text-blue-100'
+                        : 'hover:bg-gray-600 text-gray-400'
+                      }
+                    `}
+                    title="Komponente löschen"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+
+              {/* Quick Add Menu */}
+              {showQuickAdd === component.id && (
+                <div
+                  className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-600 rounded-lg shadow-xl z-50 p-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-white text-xs font-semibold mb-2 px-2">
+                    An welchen Punkt anschließen?
+                  </div>
+                  {component.connectionPoints
+                    .filter(cp => cp.connectedTo === null)
+                    .map((cp) => (
+                      <button
+                        key={cp.id}
+                        onClick={(e) => handleConnectionPointClick(cp.id, e)}
+                        className="w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-gray-700 rounded transition-colors"
+                      >
+                        📍 {cp.label} ({cp.type}) - DN{cp.dn}
+                      </button>
+                    ))}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowQuickAdd(null)
+                    }}
+                    className="w-full text-center px-2 py-1 text-xs text-gray-500 hover:text-gray-300 mt-1"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}

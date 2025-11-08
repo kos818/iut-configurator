@@ -7,15 +7,17 @@ interface ConnectionDialogProps {
   template: ComponentTemplate
   onConfirm: (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod, newComponentCPIndex?: number) => void
   onCancel: () => void
+  preselectedConnectionPointId?: string | null
 }
 
 export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   template,
   onConfirm,
   onCancel,
+  preselectedConnectionPointId = null,
 }) => {
   const components = useConfiguratorStore((state) => state.components)
-  const [selectedConnectionPoint, setSelectedConnectionPoint] = useState<string | null>(null)
+  const [selectedConnectionPoint, setSelectedConnectionPoint] = useState<string | null>(preselectedConnectionPointId)
   const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>('welded')
   const [newComponentCPIndex, setNewComponentCPIndex] = useState<number>(0) // Which CP of the new component to use
 

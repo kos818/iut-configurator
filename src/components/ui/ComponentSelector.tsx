@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Vector3, Euler } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates } from '../../data/componentTemplates'
@@ -11,8 +11,21 @@ export const ComponentSelector: React.FC = () => {
   const addComponent = useConfiguratorStore((state) => state.addComponent)
   const updateComponent = useConfiguratorStore((state) => state.updateComponent)
   const components = useConfiguratorStore((state) => state.components)
+  const quickAddConnectionPointId = useConfiguratorStore((state) => state.quickAddConnectionPointId)
+  const setQuickAddConnectionPoint = useConfiguratorStore((state) => state.setQuickAddConnectionPoint)
 
   const [dialogTemplate, setDialogTemplate] = useState<ComponentTemplate | null>(null)
+  const [preselectedConnectionPointId, setPreselectedConnectionPointId] = useState<string | null>(null)
+
+  // Auto-open dialog when quick add is triggered
+  useEffect(() => {
+    if (quickAddConnectionPointId) {
+      // Use the first template as default for quick add (can be improved)
+      setDialogTemplate(componentTemplates[0])
+      setPreselectedConnectionPointId(quickAddConnectionPointId)
+      setQuickAddConnectionPoint(null) // Clear the trigger
+    }
+  }, [quickAddConnectionPointId, setQuickAddConnectionPoint])
 
   const handleComponentClick = (template: ComponentTemplate) => {
     // If no components exist yet, add first one directly without dialog
@@ -28,13 +41,16 @@ export const ComponentSelector: React.FC = () => {
   const handleDialogConfirm = (connectionPointId: string | null, defaultDN?: number, connectionMethod?: ConnectionMethod, newComponentCPIndex: number = 0) => {
     if (!dialogTemplate) return
 
-    if (connectionPointId && defaultDN) {
+    // Use preselected connection point if provided
+    const finalConnectionPointId = connectionPointId || preselectedConnectionPointId
+
+    if (finalConnectionPointId && defaultDN) {
       // Find the connection point and component
       let targetCP: any = null
       let targetComponent: any = null
 
       for (const comp of components) {
-        const cp = comp.connectionPoints.find((p) => p.id === connectionPointId)
+        const cp = comp.connectionPoints.find((p) => p.id === finalConnectionPointId)
         if (cp) {
           targetCP = cp
           targetComponent = comp
@@ -138,10 +154,12 @@ export const ComponentSelector: React.FC = () => {
     }
 
     setDialogTemplate(null)
+    setPreselectedConnectionPointId(null)
   }
 
   const handleDialogCancel = () => {
     setDialogTemplate(null)
+    setPreselectedConnectionPointId(null)
   }
 
   return (
@@ -171,6 +189,7 @@ export const ComponentSelector: React.FC = () => {
           template={dialogTemplate}
           onConfirm={handleDialogConfirm}
           onCancel={handleDialogCancel}
+          preselectedConnectionPointId={preselectedConnectionPointId}
         />
       )}
     </>

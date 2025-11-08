@@ -24,6 +24,7 @@ interface ConfiguratorState {
   historyIndex: number
   snapTargets: string[] // Connection point IDs that are potential snap targets
   isDragging: boolean // Track if user is dragging an object
+  quickAddConnectionPointId: string | null // Connection point ID for quick add
   projectSettings: {
     isConfigured: boolean
     defaultMaterial: string
@@ -38,6 +39,7 @@ interface ConfiguratorState {
   selectComponent: (id: string | null) => void
   setSnapTargets: (targets: string[]) => void
   setIsDragging: (isDragging: boolean) => void
+  setQuickAddConnectionPoint: (connectionPointId: string | null) => void
   setProjectSettings: (material: string, dn: number) => void
   calculateTotalPrice: () => void
   clearAll: () => void
@@ -56,6 +58,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   historyIndex: 0,
   snapTargets: [],
   isDragging: false,
+  quickAddConnectionPointId: null,
   projectSettings: {
     isConfigured: false,
     defaultMaterial: 'steel',
@@ -187,6 +190,10 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   setIsDragging: (isDragging: boolean) => {
     set({ isDragging })
+  },
+
+  setQuickAddConnectionPoint: (connectionPointId: string | null) => {
+    set({ quickAddConnectionPointId: connectionPointId })
   },
 
   setProjectSettings: (material: string, dn: number) => {
