@@ -70,7 +70,9 @@ export const PropertiesPanel: React.FC = () => {
           if (visitedIds.has(componentId)) return
           visitedIds.add(componentId)
 
-          const comp = components.find((c) => c.id === componentId)
+          // Get fresh component data from store
+          const currentComponents = useConfiguratorStore.getState().components
+          const comp = currentComponents.find((c) => c.id === componentId)
           if (!comp) return
 
           // Move this component
@@ -80,8 +82,9 @@ export const PropertiesPanel: React.FC = () => {
           // Recursively move all connected components except the original pipe
           comp.connectionPoints.forEach((cp: ConnectionPoint) => {
             if (cp.connectedTo && cp.connectedTo !== inletCP?.id && cp.connectedTo !== outletCP?.id) {
-              // Find the component that owns this connection point
-              const connectedComp = components.find((c) =>
+              // Get fresh components for finding connected component
+              const freshComponents = useConfiguratorStore.getState().components
+              const connectedComp = freshComponents.find((c) =>
                 c.connectionPoints.some((p) => p.id === cp.connectedTo)
               )
               if (connectedComp && connectedComp.id !== selectedComponent.id) {
@@ -188,7 +191,9 @@ export const PropertiesPanel: React.FC = () => {
           if (visitedIds.has(componentId)) return
           visitedIds.add(componentId)
 
-          const comp = components.find((c) => c.id === componentId)
+          // Get fresh component data from store
+          const currentComponents = useConfiguratorStore.getState().components
+          const comp = currentComponents.find((c) => c.id === componentId)
           if (!comp) return
 
           // Move this component
@@ -198,8 +203,9 @@ export const PropertiesPanel: React.FC = () => {
           // Recursively move all connected components except the original tee
           comp.connectionPoints.forEach((cp: ConnectionPoint) => {
             if (cp.connectedTo && cp.connectedTo !== armCP.id) {
-              // Find the component that owns this connection point
-              const connectedComp = components.find((c) =>
+              // Get fresh components for finding connected component
+              const freshComponents = useConfiguratorStore.getState().components
+              const connectedComp = freshComponents.find((c) =>
                 c.connectionPoints.some((p) => p.id === cp.connectedTo)
               )
               if (connectedComp && connectedComp.id !== selectedComponent.id) {
@@ -265,7 +271,9 @@ export const PropertiesPanel: React.FC = () => {
       if (visitedIds.has(componentId)) return
       visitedIds.add(componentId)
 
-      const comp = components.find((c) => c.id === componentId)
+      // Get fresh component data from store
+      const currentComponents = useConfiguratorStore.getState().components
+      const comp = currentComponents.find((c) => c.id === componentId)
       if (!comp) return
 
       // Calculate new position by rotating around pivot point
@@ -303,7 +311,9 @@ export const PropertiesPanel: React.FC = () => {
       // Recursively rotate all connected components except the original
       comp.connectionPoints.forEach((cp: ConnectionPoint) => {
         if (cp.connectedTo) {
-          const connectedComp = components.find((c) =>
+          // Get fresh components for finding connected component
+          const freshComponents = useConfiguratorStore.getState().components
+          const connectedComp = freshComponents.find((c) =>
             c.connectionPoints.some((p) => p.id === cp.connectedTo)
           )
           if (connectedComp && connectedComp.id !== selectedComponent.id) {
@@ -370,7 +380,9 @@ export const PropertiesPanel: React.FC = () => {
           if (visitedIds.has(componentId)) return
           visitedIds.add(componentId)
 
-          const comp = components.find((c) => c.id === componentId)
+          // Get fresh component data from store
+          const currentComponents = useConfiguratorStore.getState().components
+          const comp = currentComponents.find((c) => c.id === componentId)
           if (!comp) return
 
           // Move this component
@@ -380,8 +392,9 @@ export const PropertiesPanel: React.FC = () => {
           // Recursively move all connected components except the original elbow
           comp.connectionPoints.forEach((cp: ConnectionPoint) => {
             if (cp.connectedTo && cp.connectedTo !== armCP.id) {
-              // Find the component that owns this connection point
-              const connectedComp = components.find((c) =>
+              // Get fresh components for finding connected component
+              const freshComponents = useConfiguratorStore.getState().components
+              const connectedComp = freshComponents.find((c) =>
                 c.connectionPoints.some((p) => p.id === cp.connectedTo)
               )
               if (connectedComp && connectedComp.id !== selectedComponent.id) {
@@ -447,7 +460,9 @@ export const PropertiesPanel: React.FC = () => {
           if (visitedIds.has(componentId)) return
           visitedIds.add(componentId)
 
-          const comp = components.find((c) => c.id === componentId)
+          // Get fresh component data from store
+          const currentComponents = useConfiguratorStore.getState().components
+          const comp = currentComponents.find((c) => c.id === componentId)
           if (!comp) return
 
           // Move this component
@@ -457,7 +472,9 @@ export const PropertiesPanel: React.FC = () => {
           // Recursively move all connected components except the original elbow
           comp.connectionPoints.forEach((cp: ConnectionPoint) => {
             if (cp.connectedTo && cp.connectedTo !== outletCP.id) {
-              const connectedComp = components.find((c) =>
+              // Get fresh components for finding connected component
+              const freshComponents = useConfiguratorStore.getState().components
+              const connectedComp = freshComponents.find((c) =>
                 c.connectionPoints.some((p) => p.id === cp.connectedTo)
               )
               if (connectedComp && connectedComp.id !== selectedComponent.id) {
