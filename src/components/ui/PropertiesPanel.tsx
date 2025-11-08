@@ -240,8 +240,85 @@ export const PropertiesPanel: React.FC = () => {
     if (normalizedValue < 0) normalizedValue += 360
 
     const newRotation = selectedComponent.rotation.clone()
+    const oldRotation = selectedComponent.rotation.clone()
     newRotation[axis] = (normalizedValue * Math.PI) / 180 // Convert to radians
+
+    // Calculate rotation difference
+    const rotationDiff = newRotation[axis] - oldRotation[axis]
+
+    // Update the component's rotation
     updateComponent(selectedComponent.id, { rotation: newRotation })
+
+    // Find all connected components and rotate them around this component
+    const connectedComponents = selectedComponent.connectionPoints
+      .filter((cp: ConnectionPoint) => cp.connectedTo !== null)
+      .map((cp: ConnectionPoint) => {
+        // Find the component that owns the connected connection point
+        return components.find((c) =>
+          c.connectionPoints.some((p) => p.id === cp.connectedTo)
+        )
+      })
+      .filter((c) => c !== undefined)
+
+    // Helper function to rotate a component and all its connected components recursively
+    const rotateComponentTree = (componentId: string, rotationAxis: 'x' | 'y' | 'z', rotationDelta: number, pivotPoint: Vector3, visitedIds: Set<string> = new Set()) => {
+      if (visitedIds.has(componentId)) return
+      visitedIds.add(componentId)
+
+      const comp = components.find((c) => c.id === componentId)
+      if (!comp) return
+
+      // Calculate new position by rotating around pivot point
+      const relativePos = comp.position.clone().sub(pivotPoint)
+
+      // Create rotation matrix for the axis
+      if (rotationAxis === 'x') {
+        const y = relativePos.y
+        const z = relativePos.z
+        relativePos.y = y * Math.cos(rotationDelta) - z * Math.sin(rotationDelta)
+        relativePos.z = y * Math.sin(rotationDelta) + z * Math.cos(rotationDelta)
+      } else if (rotationAxis === 'y') {
+        const x = relativePos.x
+        const z = relativePos.z
+        relativePos.x = x * Math.cos(rotationDelta) + z * Math.sin(rotationDelta)
+        relativePos.z = -x * Math.sin(rotationDelta) + z * Math.cos(rotationDelta)
+      } else if (rotationAxis === 'z') {
+        const x = relativePos.x
+        const y = relativePos.y
+        relativePos.x = x * Math.cos(rotationDelta) - y * Math.sin(rotationDelta)
+        relativePos.y = x * Math.sin(rotationDelta) + y * Math.cos(rotationDelta)
+      }
+
+      const newPos = relativePos.add(pivotPoint)
+
+      // Update component rotation and position
+      const newCompRotation = comp.rotation.clone()
+      newCompRotation[rotationAxis] += rotationDelta
+
+      updateComponent(componentId, {
+        position: newPos,
+        rotation: newCompRotation
+      })
+
+      // Recursively rotate all connected components except the original
+      comp.connectionPoints.forEach((cp: ConnectionPoint) => {
+        if (cp.connectedTo) {
+          const connectedComp = components.find((c) =>
+            c.connectionPoints.some((p) => p.id === cp.connectedTo)
+          )
+          if (connectedComp && connectedComp.id !== selectedComponent.id) {
+            rotateComponentTree(connectedComp.id, rotationAxis, rotationDelta, pivotPoint, visitedIds)
+          }
+        }
+      })
+    }
+
+    // Rotate all connected component trees
+    connectedComponents.forEach((comp) => {
+      if (comp && rotationDiff !== 0) {
+        rotateComponentTree(comp.id, axis, rotationDiff, selectedComponent.position)
+      }
+    })
   }
 
   const handleElbowArmLengthChange = (arm: 'inlet' | 'outlet', newLength: number) => {
