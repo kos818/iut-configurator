@@ -51,9 +51,6 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
   const outletCenterX = (outletLengthM / 2) * outletDirX
   const outletCenterY = (outletLengthM / 2) * outletDirY
 
-  // Outlet arm rotation (around Z-axis)
-  const outletRotationZ = angleInRadians
-
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
       {/* Inlet arm (pointing down, -Y direction) */}
@@ -68,7 +65,7 @@ export const ElbowPipe: React.FC<ElbowPipeProps> = ({
       {/* Outlet arm (rotated by angle) */}
       <mesh
         position={[outletCenterX, outletCenterY, 0]}
-        rotation={[0, 0, Math.PI / 2 - outletRotationZ]}
+        rotation={[0, 0, angleInRadians - Math.PI / 2]}
       >
         <cylinderGeometry args={[outerRadius, outerRadius, outletLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />

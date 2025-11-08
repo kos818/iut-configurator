@@ -88,7 +88,29 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   },
 
   removeComponent: (id: string) => {
-    const newComponents = get().components.filter((c) => c.id !== id)
+    const componentToRemove = get().components.find((c) => c.id === id)
+
+    // First, find all connection point IDs from the component being removed
+    const removedConnectionPointIds = componentToRemove?.connectionPoints.map(cp => cp.id) || []
+
+    // Filter out the component
+    let newComponents = get().components.filter((c) => c.id !== id)
+
+    // Update all remaining components to clear connections to the removed component
+    newComponents = newComponents.map((c) => ({
+      ...c,
+      connectionPoints: c.connectionPoints.map((cp) => {
+        // If this connection point was connected to any of the removed component's points
+        if (removedConnectionPointIds.includes(cp.connectedTo || '')) {
+          return {
+            ...cp,
+            connectedTo: null,
+            connectionMethod: undefined
+          }
+        }
+        return cp
+      })
+    }))
 
     set((state) => ({
       components: newComponents,
