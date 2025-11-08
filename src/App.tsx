@@ -5,10 +5,20 @@ import { PropertiesPanel } from './components/ui/PropertiesPanel'
 import { PriceDisplay } from './components/ui/PriceDisplay'
 import { Toolbar } from './components/ui/Toolbar'
 import { ValidationPanel } from './components/ui/ValidationPanel'
+import { ProjectSettingsDialog } from './components/ui/ProjectSettingsDialog'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useConfiguratorStore } from './store/useConfiguratorStore'
+import { DNValue } from './types'
 
 function App() {
   useKeyboardShortcuts()
+
+  const projectSettings = useConfiguratorStore((state) => state.projectSettings)
+  const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
+
+  const handleProjectSettings = (material: string, dn: DNValue) => {
+    setProjectSettings(material, dn)
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900">
@@ -59,6 +69,11 @@ function App() {
           </div>
         </aside>
       </div>
+
+      {/* Project Settings Dialog - shown on first load */}
+      {!projectSettings.isConfigured && (
+        <ProjectSettingsDialog onConfirm={handleProjectSettings} />
+      )}
     </div>
   )
 }

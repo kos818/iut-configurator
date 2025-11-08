@@ -1,14 +1,27 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Vector3, Euler } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
-import { ConnectionMethod, ConnectionPoint } from '../../types'
+import { ConnectionMethod, ConnectionPoint, DNValue } from '../../types'
+import { GlobalChangeDialog } from './GlobalChangeDialog'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedId = useConfiguratorStore((state) => state.selectedComponent)
   const updateComponent = useConfiguratorStore((state) => state.updateComponent)
+  const updateAllComponents = useConfiguratorStore((state) => state.updateAllComponents)
   const removeComponent = useConfiguratorStore((state) => state.removeComponent)
+  const projectSettings = useConfiguratorStore((state) => state.projectSettings)
+  const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
+
+  // State for global change dialog
+  const [globalChangeDialog, setGlobalChangeDialog] = useState<{
+    show: boolean
+    type: 'material' | 'dn'
+    oldValue: string | number
+    newValue: string | number
+    onConfirm: (applyGlobally: boolean) => void
+  } | null>(null)
 
   const selectedComponent = components.find((c) => c.id === selectedId)
 
@@ -26,7 +39,32 @@ export const PropertiesPanel: React.FC = () => {
   )
 
   const handleDNChange = (newDN: number) => {
-    updateComponent(selectedComponent.id, { dn: newDN as any })
+    const oldDN = selectedComponent.dn
+
+    // If project settings are configured and component count > 1, show global change dialog
+    if (projectSettings.isConfigured && components.length > 1) {
+      setGlobalChangeDialog({
+        show: true,
+        type: 'dn',
+        oldValue: oldDN,
+        newValue: newDN,
+        onConfirm: (applyGlobally: boolean) => {
+          if (applyGlobally) {
+            // Update all components
+            updateAllComponents({ dn: newDN as DNValue })
+            // Update project settings
+            setProjectSettings(projectSettings.defaultMaterial, newDN)
+          } else {
+            // Update only this component
+            updateComponent(selectedComponent.id, { dn: newDN as any })
+          }
+          setGlobalChangeDialog(null)
+        }
+      })
+    } else {
+      // No dialog needed, just update
+      updateComponent(selectedComponent.id, { dn: newDN as any })
+    }
   }
 
   const handleLengthChange = (newLength: number) => {
@@ -148,7 +186,32 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleMaterialChange = (newMaterial: 'steel' | 'stainless' | 'copper' | 'pvc') => {
-    updateComponent(selectedComponent.id, { material: newMaterial })
+    const oldMaterial = selectedComponent.material
+
+    // If project settings are configured and component count > 1, show global change dialog
+    if (projectSettings.isConfigured && components.length > 1) {
+      setGlobalChangeDialog({
+        show: true,
+        type: 'material',
+        oldValue: oldMaterial,
+        newValue: newMaterial,
+        onConfirm: (applyGlobally: boolean) => {
+          if (applyGlobally) {
+            // Update all components
+            updateAllComponents({ material: newMaterial })
+            // Update project settings
+            setProjectSettings(newMaterial, projectSettings.defaultDN)
+          } else {
+            // Update only this component
+            updateComponent(selectedComponent.id, { material: newMaterial })
+          }
+          setGlobalChangeDialog(null)
+        }
+      })
+    } else {
+      // No dialog needed, just update
+      updateComponent(selectedComponent.id, { material: newMaterial })
+    }
   }
 
   const handleArmLengthChange = (arm: 'inlet' | 'outlet' | 'branch', newLength: number) => {
@@ -793,6 +856,17 @@ export const PropertiesPanel: React.FC = () => {
           Komponente löschen
         </button>
       </div>
+
+      {/* Global Change Dialog */}
+      {globalChangeDialog && (
+        <GlobalChangeDialog
+          changeType={globalChangeDialog.type}
+          oldValue={globalChangeDialog.oldValue}
+          newValue={globalChangeDialog.newValue}
+          onConfirm={globalChangeDialog.onConfirm}
+          onCancel={() => setGlobalChangeDialog(null)}
+        />
+      )}
     </div>
   )
 }

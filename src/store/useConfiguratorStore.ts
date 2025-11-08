@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Vector3 } from 'three'
-import { PipeComponent, ComponentTemplate } from '../types'
+import { PipeComponent, ComponentTemplate, MaterialType } from '../types'
 import { materialMultipliers, componentTemplates } from '../data/componentTemplates'
 import { generateConnectionPoints } from '../utils/connectionHelpers'
 
@@ -24,14 +24,21 @@ interface ConfiguratorState {
   historyIndex: number
   snapTargets: string[] // Connection point IDs that are potential snap targets
   isDragging: boolean // Track if user is dragging an object
+  projectSettings: {
+    isConfigured: boolean
+    defaultMaterial: string
+    defaultDN: number
+  }
 
   // Actions
   addComponent: (template: ComponentTemplate, position?: Vector3) => void
   removeComponent: (id: string) => void
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
+  updateAllComponents: (updates: Partial<PipeComponent>) => void
   selectComponent: (id: string | null) => void
   setSnapTargets: (targets: string[]) => void
   setIsDragging: (isDragging: boolean) => void
+  setProjectSettings: (material: string, dn: number) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -49,14 +56,25 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   historyIndex: 0,
   snapTargets: [],
   isDragging: false,
+  projectSettings: {
+    isConfigured: false,
+    defaultMaterial: 'steel',
+    defaultDN: 50,
+  },
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
+    const { projectSettings } = get()
+
+    // Use project defaults if configured
+    const material = projectSettings.isConfigured ? (projectSettings.defaultMaterial as MaterialType) : template.material
+    const dn = projectSettings.isConfigured ? projectSettings.defaultDN as any : template.defaultDN
+
     const newComponent: PipeComponent = {
       id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: template.type,
       position: position || new Vector3(0, 0, 0),
       rotation: new Vector3(0, 0, 0),
-      dn: template.defaultDN,
+      dn,
       length: template.defaultLength,
       angle: template.defaultAngle,
       armLength: template.defaultArmLength,
@@ -65,9 +83,9 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,
-        material: template.material
+        material
       }, template),
-      material: template.material,
+      material,
       connectionPoints: [], // will be generated below
       isValid: true,
       validationMessages: [],
@@ -169,6 +187,51 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   setIsDragging: (isDragging: boolean) => {
     set({ isDragging })
+  },
+
+  setProjectSettings: (material: string, dn: number) => {
+    set({
+      projectSettings: {
+        isConfigured: true,
+        defaultMaterial: material,
+        defaultDN: dn,
+      },
+    })
+  },
+
+  updateAllComponents: (updates: Partial<PipeComponent>) => {
+    const newComponents = get().components.map((c) => {
+      const updated = { ...c, ...updates }
+      // Recalculate price if material, dn, or length changed
+      if (updates.material || updates.dn || updates.length) {
+        updated.price = calculateComponentPrice(updated)
+      }
+      // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed
+      if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths || updates.angle !== undefined) {
+        // Store existing connection info before regenerating
+        const existingConnections = new Map(
+          c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])
+        )
+
+        // Generate new connection points with updated positions
+        const newConnectionPoints = generateConnectionPoints(updated)
+
+        // Restore connection info to new connection points
+        updated.connectionPoints = newConnectionPoints.map(cp => ({
+          ...cp,
+          connectedTo: existingConnections.get(cp.type)?.connectedTo ?? cp.connectedTo,
+          connectionMethod: existingConnections.get(cp.type)?.connectionMethod ?? cp.connectionMethod,
+        }))
+      }
+      return updated
+    })
+
+    set((state) => ({
+      components: newComponents,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
+    }))
+    get().calculateTotalPrice()
   },
 
   calculateTotalPrice: () => {
