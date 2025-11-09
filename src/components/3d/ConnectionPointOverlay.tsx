@@ -1,0 +1,269 @@
+import React, { useState, useEffect } from 'react'
+import { useThree, useFrame } from '@react-three/fiber'
+import { Plus } from 'lucide-react'
+import { Vector3, Euler } from 'three'
+import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
+import { calculateConnectionRotation } from '../../utils/rotationHelpers'
+import { QuickAddMenu } from '../ui/QuickAddMenu'
+import { ComponentTemplate, PipeComponent, ConnectionPoint, DNValue, ConnectionMethod } from '../../types'
+
+interface ScreenPosition {
+  x: number
+  y: number
+  connectionPointId: string
+  isVisible: boolean
+  isSelected: boolean
+  isConnected: boolean
+}
+
+// Store for screen positions - using a simple module-level store
+let screenPositionsStore: ScreenPosition[] = []
+let updateListeners: Array<() => void> = []
+
+export const subscribeToPositions = (listener: () => void) => {
+  updateListeners.push(listener)
+  return () => {
+    updateListeners = updateListeners.filter((l) => l !== listener)
+  }
+}
+
+export const getScreenPositions = () => screenPositionsStore
+
+export const setScreenPositions = (positions: ScreenPosition[]) => {
+  screenPositionsStore = positions
+  updateListeners.forEach((listener) => listener())
+}
+
+// Component that runs inside Canvas to calculate positions
+export const ConnectionPointPositionTracker: React.FC = () => {
+  const { camera, size } = useThree()
+  const components = useConfiguratorStore((state) => state.components)
+  const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
+
+  useFrame(() => {
+    const positions: ScreenPosition[] = []
+
+    components.forEach((component) => {
+      const isSelected = component.id === selectedComponent
+
+      component.connectionPoints.forEach((cp) => {
+        const isConnected = cp.connectedTo !== null
+
+        // Only show for unconnected points on selected or hovered components
+        if (isConnected || !isSelected) return
+
+        const worldPos = getWorldPosition(component, cp)
+
+        // Project 3D position to 2D screen coordinates
+        const vector = new Vector3(worldPos.x, worldPos.y, worldPos.z)
+        vector.project(camera)
+
+        // Convert to screen coordinates
+        const x = (vector.x * 0.5 + 0.5) * size.width
+        const y = (-(vector.y * 0.5) + 0.5) * size.height
+
+        // Check if behind camera (z > 1 means behind)
+        const isVisible = vector.z < 1 && vector.z > -1
+
+        positions.push({
+          x,
+          y,
+          connectionPointId: cp.id,
+          isVisible,
+          isSelected,
+          isConnected,
+        })
+      })
+    })
+
+    setScreenPositions(positions)
+  })
+
+  return null
+}
+
+// Component that renders outside the Canvas as 2D overlay
+export const ConnectionPointUI: React.FC = () => {
+  const [screenPositions, setScreenPositionsState] = useState<ScreenPosition[]>([])
+  const [menuOpenForCP, setMenuOpenForCP] = useState<string | null>(null)
+  const addComponent = useConfiguratorStore((state) => state.addComponent)
+  const updateComponent = useConfiguratorStore((state) => state.updateComponent)
+  const components = useConfiguratorStore((state) => state.components)
+
+  useEffect(() => {
+    const unsubscribe = subscribeToPositions(() => {
+      setScreenPositionsState(getScreenPositions())
+    })
+    return unsubscribe
+  }, [])
+
+  const handleComponentSelect = (template: ComponentTemplate, targetCPId: string, connectionMethod: ConnectionMethod = 'welded', newComponentCPIndex: number = 0) => {
+    // Find the target connection point
+    let targetCP: any = null
+    let targetComponent: any = null
+
+    for (const comp of components) {
+      const cp = comp.connectionPoints.find((p) => p.id === targetCPId)
+      if (cp) {
+        targetCP = cp
+        targetComponent = comp
+        break
+      }
+    }
+
+    if (!targetCP || !targetComponent) return
+
+    // Create new component with DN from target connection point
+    const templateWithDN = { ...template, defaultDN: targetCP.dn as DNValue }
+
+    // Calculate position: place new component at target connection point
+    const targetWorldPos = getWorldPosition(targetComponent, targetCP)
+
+    // Create a temporary component to calculate its default connection point direction and position
+    const tempComponent: Partial<PipeComponent> = {
+      id: 'temp',
+      type: templateWithDN.type,
+      position: new Vector3(0, 0, 0),
+      rotation: new Vector3(0, 0, 0),
+      dn: templateWithDN.defaultDN,
+      length: templateWithDN.defaultLength,
+      angle: templateWithDN.defaultAngle,
+      armLength: templateWithDN.defaultArmLength,
+      teeArmLengths: templateWithDN.defaultTeeArmLengths,
+      elbowArmLengths: templateWithDN.defaultElbowArmLengths,
+      price: 0,
+      material: templateWithDN.material,
+      connectionPoints: [],
+      isValid: true,
+      validationMessages: [],
+    }
+    const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
+    const selectedCP = tempCPs.length > newComponentCPIndex ? tempCPs[newComponentCPIndex] : tempCPs[0]
+    const selectedCPDirection = selectedCP ? selectedCP.direction : new Vector3(0, 1, 0)
+    const selectedCPPosition = selectedCP ? selectedCP.position : new Vector3(0, 0, 0)
+
+    // Get world direction of target connection point
+    const targetWorldDirection = getWorldDirection(targetComponent, targetCP)
+
+    // Calculate rotation to align new component with target
+    const rotation = calculateConnectionRotation(targetWorldDirection, selectedCPDirection)
+
+    // Apply rotation to the connection point position to get the offset in world space
+    const rotatedCPOffset = selectedCPPosition.clone()
+    rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
+
+    // Calculate the actual component position: target position minus the rotated CP offset
+    let actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
+
+    // If using flanged connection, add extra spacing for the flanges
+    if (connectionMethod === 'flanged') {
+      const pipeRadius = targetCP.dn / 2000
+      const flangeThickness = pipeRadius * 0.4
+      const flangeSpacing = flangeThickness * 2
+      const targetDirection = getWorldDirection(targetComponent, targetCP)
+      const spacingOffset = targetDirection.clone().multiplyScalar(flangeSpacing)
+      actualPosition.add(spacingOffset)
+    }
+
+    // Add component at corrected position with calculated rotation
+    addComponent(templateWithDN, actualPosition)
+
+    // Wait for next tick to get the new component and apply rotation + connection
+    setTimeout(() => {
+      const allComponents = useConfiguratorStore.getState().components
+      const newComponent = allComponents[allComponents.length - 1]
+
+      if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
+        const newCP = newComponent.connectionPoints[newComponentCPIndex]
+
+        // Apply rotation and mark both connection points as connected
+        updateComponent(newComponent.id, {
+          rotation,
+          connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
+            cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
+          )
+        })
+
+        updateComponent(targetComponent.id, {
+          connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
+            cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
+          )
+        })
+      }
+    }, 50)
+
+    // Close the menu
+    setMenuOpenForCP(null)
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 1000,
+      }}
+    >
+      {screenPositions.map((pos) => {
+        if (!pos.isVisible) return null
+
+        const isMenuOpen = menuOpenForCP === pos.connectionPointId
+
+        return (
+          <div
+            key={pos.connectionPointId}
+            style={{
+              position: 'absolute',
+              left: `${pos.x}px`,
+              top: `${pos.y}px`,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto',
+              zIndex: isMenuOpen ? 10000 : 1000,
+            }}
+          >
+            {isMenuOpen ? (
+              <div style={{ position: 'relative' }}>
+                <QuickAddMenu
+                  onSelect={(template: ComponentTemplate) => {
+                    handleComponentSelect(template, pos.connectionPointId)
+                  }}
+                  onClose={() => setMenuOpenForCP(null)}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpenForCP(pos.connectionPointId)
+                }}
+                className={`${
+                  pos.isSelected
+                    ? 'bg-yellow-500 hover:bg-yellow-600'
+                    : 'bg-green-500 hover:bg-green-600'
+                } text-white rounded-full shadow-lg transition-all transform hover:scale-110`}
+                style={{
+                  cursor: 'pointer',
+                  border: '2px solid white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  width: '28px',
+                  height: '28px',
+                }}
+              >
+                <Plus size={16} />
+              </button>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+

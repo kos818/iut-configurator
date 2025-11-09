@@ -4,6 +4,7 @@ import { OrbitControls, Grid, Environment } from '@react-three/drei'
 import { PipeRenderer } from './PipeRenderer'
 import { ConnectionPointsVisualizer } from './ConnectionPointsVisualizer'
 import { ConnectionLinesVisualizer } from './ConnectionLinesVisualizer'
+import { ConnectionPointPositionTracker, ConnectionPointUI } from './ConnectionPointOverlay'
 import { ZoomControls } from '../ui/ZoomControls'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -269,8 +270,14 @@ export const Scene3D: React.FC = () => {
 
         {/* Render connection lines */}
         <ConnectionLinesVisualizer />
+
+        {/* Track connection point positions for 2D overlay */}
+        <ConnectionPointPositionTracker />
       </Suspense>
     </Canvas>
+
+      {/* 2D overlay for connection point UI */}
+      <ConnectionPointUI />
 
       {/* Zoom & Pan Controls */}
       <ZoomControls

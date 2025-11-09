@@ -1,124 +1,15 @@
-import React, { useState } from 'react'
-import { Vector3, Euler } from 'three'
-import { Text, Html } from '@react-three/drei'
-import { Plus } from 'lucide-react'
+import React from 'react'
+import { Text } from '@react-three/drei'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
-import { calculateConnectionRotation } from '../../utils/rotationHelpers'
-import { ComponentTemplate, PipeComponent, ConnectionPoint, DNValue, ConnectionMethod } from '../../types'
-import { QuickAddMenu } from '../ui/QuickAddMenu'
+import { getWorldPosition, getWorldDirection } from '../../utils/connectionHelpers'
 
 export const ConnectionPointsVisualizer: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
   const snapTargets = useConfiguratorStore((state) => state.snapTargets)
-  const addComponent = useConfiguratorStore((state) => state.addComponent)
-  const updateComponent = useConfiguratorStore((state) => state.updateComponent)
   const dialogSelectableConnectionPoints = useConfiguratorStore((state) => state.dialogSelectableConnectionPoints)
   const dialogSelectedConnectionPoint = useConfiguratorStore((state) => state.dialogSelectedConnectionPoint)
   const setDialogSelectedConnectionPoint = useConfiguratorStore((state) => state.setDialogSelectedConnectionPoint)
-
-  const [hoveredCP, setHoveredCP] = useState<string | null>(null)
-  const [menuOpenForCP, setMenuOpenForCP] = useState<string | null>(null)
-
-  const handleComponentSelect = (template: ComponentTemplate, targetCPId: string, connectionMethod: ConnectionMethod = 'welded', newComponentCPIndex: number = 0) => {
-    // Find the target connection point
-    let targetCP: any = null
-    let targetComponent: any = null
-
-    for (const comp of components) {
-      const cp = comp.connectionPoints.find((p) => p.id === targetCPId)
-      if (cp) {
-        targetCP = cp
-        targetComponent = comp
-        break
-      }
-    }
-
-    if (!targetCP || !targetComponent) return
-
-    // Create new component with DN from target connection point
-    const templateWithDN = { ...template, defaultDN: targetCP.dn as DNValue }
-
-    // Calculate position: place new component at target connection point
-    const targetWorldPos = getWorldPosition(targetComponent, targetCP)
-
-    // Create a temporary component to calculate its default connection point direction and position
-    const tempComponent: Partial<PipeComponent> = {
-      id: 'temp',
-      type: templateWithDN.type,
-      position: new Vector3(0, 0, 0),
-      rotation: new Vector3(0, 0, 0),
-      dn: templateWithDN.defaultDN,
-      length: templateWithDN.defaultLength,
-      angle: templateWithDN.defaultAngle,
-      armLength: templateWithDN.defaultArmLength,
-      teeArmLengths: templateWithDN.defaultTeeArmLengths,
-      elbowArmLengths: templateWithDN.defaultElbowArmLengths,
-      price: 0,
-      material: templateWithDN.material,
-      connectionPoints: [],
-      isValid: true,
-      validationMessages: [],
-    }
-    const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
-    const selectedCP = tempCPs.length > newComponentCPIndex ? tempCPs[newComponentCPIndex] : tempCPs[0]
-    const selectedCPDirection = selectedCP ? selectedCP.direction : new Vector3(0, 1, 0)
-    const selectedCPPosition = selectedCP ? selectedCP.position : new Vector3(0, 0, 0)
-
-    // Get world direction of target connection point
-    const targetWorldDirection = getWorldDirection(targetComponent, targetCP)
-
-    // Calculate rotation to align new component with target
-    const rotation = calculateConnectionRotation(targetWorldDirection, selectedCPDirection)
-
-    // Apply rotation to the connection point position to get the offset in world space
-    const rotatedCPOffset = selectedCPPosition.clone()
-    rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
-
-    // Calculate the actual component position: target position minus the rotated CP offset
-    let actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
-
-    // If using flanged connection, add extra spacing for the flanges
-    if (connectionMethod === 'flanged') {
-      const pipeRadius = targetCP.dn / 2000
-      const flangeThickness = pipeRadius * 0.4
-      const flangeSpacing = flangeThickness * 2
-      const targetDirection = getWorldDirection(targetComponent, targetCP)
-      const spacingOffset = targetDirection.clone().multiplyScalar(flangeSpacing)
-      actualPosition.add(spacingOffset)
-    }
-
-    // Add component at corrected position with calculated rotation
-    addComponent(templateWithDN, actualPosition)
-
-    // Wait for next tick to get the new component and apply rotation + connection
-    setTimeout(() => {
-      const allComponents = useConfiguratorStore.getState().components
-      const newComponent = allComponents[allComponents.length - 1]
-
-      if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
-        const newCP = newComponent.connectionPoints[newComponentCPIndex]
-
-        // Apply rotation and mark both connection points as connected
-        updateComponent(newComponent.id, {
-          rotation,
-          connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
-            cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
-          )
-        })
-
-        updateComponent(targetComponent.id, {
-          connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
-            cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
-          )
-        })
-      }
-    }, 50)
-
-    // Close the menu
-    setMenuOpenForCP(null)
-  }
 
   return (
     <group>
@@ -135,7 +26,7 @@ export const ConnectionPointsVisualizer: React.FC = () => {
           const isDialogSelected = dialogSelectedConnectionPoint === cp.id
 
           // Color coding:
-          // - Purple/Magenta: dialog selectable (pulsing)
+          // - Purple/Magenta: dialog selectable
           // - Cyan: dialog selected
           // - Orange: snap target (nearby during drag)
           // - Green: available for connection
@@ -163,8 +54,6 @@ export const ConnectionPointsVisualizer: React.FC = () => {
             color = '#ffff00' // yellow
           }
 
-          const isHovered = hoveredCP === cp.id
-
           return (
             <group key={cp.id}>
               {/* Connection point sphere */}
@@ -176,16 +65,6 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                   if (isDialogSelectable) {
                     setDialogSelectedConnectionPoint(cp.id)
                   }
-                }}
-                onPointerEnter={(e) => {
-                  e.stopPropagation()
-                  if (!isConnected || isDialogSelectable) {
-                    setHoveredCP(cp.id)
-                  }
-                }}
-                onPointerLeave={(e) => {
-                  e.stopPropagation()
-                  setHoveredCP(null)
                 }}
               >
                 <sphereGeometry args={[size, 16, 16]} />
@@ -233,48 +112,6 @@ export const ConnectionPointsVisualizer: React.FC = () => {
               >
                 {cp.label}
               </Text>
-
-              {/* Plus button - show for selected component's available connection points OR on hover */}
-              {!isConnected && (isSelected || isHovered) && (
-                <Html
-                  position={[worldPos.x, worldPos.y + 0.15, worldPos.z]}
-                  center
-                  style={{ pointerEvents: 'auto' }}
-                  transform
-                  zIndexRange={[menuOpenForCP === cp.id ? 10000 : 100, 0]}
-                >
-                  {menuOpenForCP === cp.id ? (
-                    <QuickAddMenu
-                      onSelect={(template) => handleComponentSelect(template, cp.id)}
-                      onClose={() => setMenuOpenForCP(null)}
-                    />
-                  ) : (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpenForCP(cp.id)
-                        setHoveredCP(null)
-                      }}
-                      className={`${
-                        isSelected ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'
-                      } text-white rounded-full shadow-sm transition-all transform hover:scale-110`}
-                      title={`Komponente an ${cp.label} hinzufügen`}
-                      style={{
-                        cursor: 'pointer',
-                        border: '1px solid white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '1px',
-                        width: '16px',
-                        height: '16px',
-                      }}
-                    >
-                      <Plus size={10} />
-                    </button>
-                  )}
-                </Html>
-              )}
             </group>
           )
         })
