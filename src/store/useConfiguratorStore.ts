@@ -166,8 +166,10 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         if (updates.material || updates.dn || updates.length || updates.wallThickness) {
           updated.price = calculateComponentPrice(updated)
         }
-        // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed
-        if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths || updates.angle !== undefined) {
+        // Regenerate connection points if any geometric properties changed
+        if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths ||
+            updates.angle !== undefined || updates.flangePosition || updates.branch1 || updates.branch2 ||
+            updates.bendRadius !== undefined || updates.inletDN || updates.outletDN) {
           // Store existing connection info before regenerating
           const existingConnections = new Map(
             c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])
