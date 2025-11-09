@@ -142,7 +142,8 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
 
     case 'cross': {
       // Cross piece with 4 connection points (inlet, outlet, branch, branch2)
-      const armLength = radius * 4 // 4x radius for each arm
+      // Use configurable arm length, or default
+      const armLengthM = (component.armLength || 200) / 1000 // Convert mm to meters
 
       // Inlet (left, Arm A)
       points.push({
@@ -150,7 +151,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(-armLength, 0, 0),
+        position: new Vector3(-armLengthM, 0, 0),
         direction: new Vector3(-1, 0, 0),
         dn,
         connectedTo: null,
@@ -161,7 +162,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(armLength, 0, 0),
+        position: new Vector3(armLengthM, 0, 0),
         direction: new Vector3(1, 0, 0),
         dn,
         connectedTo: null,
@@ -172,7 +173,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(0, armLength, 0),
+        position: new Vector3(0, armLengthM, 0),
         direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,
@@ -183,7 +184,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         componentId: component.id,
         type: 'branch2',
         label: labels[3], // D
-        position: new Vector3(0, -armLength, 0),
+        position: new Vector3(0, -armLengthM, 0),
         direction: new Vector3(0, -1, 0),
         dn,
         connectedTo: null,

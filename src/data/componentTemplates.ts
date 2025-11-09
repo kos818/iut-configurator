@@ -129,6 +129,7 @@ export const componentTemplates: ComponentTemplate[] = [
     description: 'Kreuzverbindung für vier Rohre',
     group: 'branches',
     defaultDN: 50,
+    defaultArmLength: 200,
     basePrice: 55.0,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],
     material: 'steel',
