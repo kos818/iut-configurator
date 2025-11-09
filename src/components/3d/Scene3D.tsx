@@ -127,9 +127,9 @@ export const Scene3D: React.FC = () => {
     // Calculate camera distance based on FOV and bounding box size
     const fov = 60 // degrees
     const fovRadians = (fov * Math.PI) / 180
-    // For first element, use 1.1 padding (90% fill), otherwise use 1.5 padding
-    const paddingFactor = components.length === 1 ? 1.1 : 1.5
-    const cameraDistance = Math.max(3, maxDim / Math.tan(fovRadians / 2)) * paddingFactor
+    // For first element, use 0.6 padding (closer = 90% fill), otherwise use 1.5 padding
+    const paddingFactor = components.length === 1 ? 0.6 : 1.5
+    const cameraDistance = Math.max(0.5, maxDim / Math.tan(fovRadians / 2)) * paddingFactor
 
     // Position camera at an angle (45 degrees elevation, 45 degrees azimuth)
     const angle = Math.PI / 4 // 45 degrees

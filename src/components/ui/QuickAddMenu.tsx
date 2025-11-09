@@ -24,16 +24,15 @@ export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
 
   return (
     <div
-      className="bg-white rounded-md shadow-2xl border border-blue-500 flex flex-col"
+      className="bg-white rounded-md shadow-2xl border-2 border-blue-500 flex flex-col"
       style={{
-        width: '200px',
-        maxHeight: '320px',
+        width: '220px',
+        maxHeight: '350px',
         pointerEvents: 'auto',
         WebkitFontSmoothing: 'antialiased',
         MozOsxFontSmoothing: 'grayscale',
-        fontSize: '12px',
-        transform: 'scale(1)',
-        transformOrigin: 'center',
+        fontSize: '13px',
+        zIndex: 10000,
       }}
       onClick={(e) => e.stopPropagation()}
     >

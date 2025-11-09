@@ -239,9 +239,9 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                 <Html
                   position={[worldPos.x, worldPos.y + 0.15, worldPos.z]}
                   center
-                  style={{ pointerEvents: 'auto', zIndex: menuOpenForCP === cp.id ? 9999 : 100 }}
+                  style={{ pointerEvents: 'auto' }}
                   transform
-                  sprite
+                  zIndexRange={[menuOpenForCP === cp.id ? 10000 : 100, 0]}
                 >
                   {menuOpenForCP === cp.id ? (
                     <QuickAddMenu
@@ -257,7 +257,7 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                       }}
                       className={`${
                         isSelected ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'
-                      } text-white rounded-full shadow-md transition-all transform hover:scale-110`}
+                      } text-white rounded-full shadow-sm transition-all transform hover:scale-110`}
                       title={`Komponente an ${cp.label} hinzufügen`}
                       style={{
                         cursor: 'pointer',
@@ -265,12 +265,12 @@ export const ConnectionPointsVisualizer: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '2px',
-                        width: '20px',
-                        height: '20px',
+                        padding: '1px',
+                        width: '16px',
+                        height: '16px',
                       }}
                     >
-                      <Plus size={12} />
+                      <Plus size={10} />
                     </button>
                   )}
                 </Html>
