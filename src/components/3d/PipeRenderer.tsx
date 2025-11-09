@@ -62,10 +62,10 @@ export const PipeRenderer: React.FC = () => {
               />
             )
           case 'tee':
-          case 'tee_flanged_symmetrical':
-          case 'tee_flanged_asymmetrical':
-          case 'tee_reducing_equal':
-          case 'tee_reducing_unequal':
+          case 'ffft_symmetrical':
+          case 'ffft_asymmetrical':
+          case 'ffq_equal':
+          case 'ffq_unequal':
           case 'wye':
           case 'wye_angled':
           case 'union_straight':
@@ -134,8 +134,8 @@ export const PipeRenderer: React.FC = () => {
               />
             )
           case 'reducer':
-          case 'reducer_concentric':
-          case 'reducer_eccentric':
+          case 'frr_concentric':
+          case 'frr_eccentric':
             return (
               <Reducer
                 key={component.id}

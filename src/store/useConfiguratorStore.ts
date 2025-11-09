@@ -92,6 +92,12 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       armLength: template.defaultArmLength,
       teeArmLengths: template.defaultTeeArmLengths,
       elbowArmLengths: template.defaultElbowArmLengths,
+      flangePosition: template.defaultFlangePosition,
+      branch1: template.defaultBranch1 ? { ...template.defaultBranch1, dn: template.defaultBranch1.dn || dn } as any : undefined,
+      branch2: template.defaultBranch2 ? { ...template.defaultBranch2, dn: template.defaultBranch2.dn || dn } as any : undefined,
+      bendRadius: template.defaultBendRadius,
+      inletDN: template.defaultInletDN,
+      outletDN: template.defaultOutletDN,
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,

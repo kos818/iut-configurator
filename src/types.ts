@@ -10,16 +10,24 @@ export type PipeComponentType =
   | 'flange'
   | 'reducer'
   | 'cap'
-  | 'wye' // Y-Verzweigung (Hosenrohr)
-  | 'wye_angled' // Y-Verzweigung abgewinkelt
+  | 'f_piece' // F-Stück - Rohr mit Flansch auf einer Seite
+  | 'ff_piece' // FF-Stück - Rohr mit Flanschen auf beiden Seiten
+  | 'ff_piece_one_branch' // F1-Stück ein Abgang
+  | 'ff_piece_two_branches' // FF-Stück zwei Abgänge
+  | 'ffq_equal' // FFQ-Stück gleichschenklig
+  | 'ffq_unequal' // FFQ-Stück ungleichschenklig
+  | 'frk_equal' // FRK-Stück gleichschenklig
+  | 'frk_unequal' // FRK-Stück ungleichschenklig
+  | 'frr_concentric' // FRR-Stück konzentrisch
+  | 'frr_eccentric' // FRR-Stück exzentrisch
+  | 'ffft_symmetrical' // FFFT-Stück symmetrisch
+  | 'ffft_asymmetrical' // FFFT-Stück asymmetrisch
+  | 'fffor_one_branch' // FFFOR-Stück ein Abgang
+  | 'fffrk_one_branch' // FFFRK-Stück ein Abgang
+  | 'wye' // Hosenrohr gerade
+  | 'wye_angled' // Hosenrohr abgewinkelt
   | 'union_straight' // Vereinigungsstück gerade
   | 'union_angled' // Vereinigungsstück abgewinkelt
-  | 'reducer_concentric' // FRR konzentrisch
-  | 'reducer_eccentric' // FRR exzentrisch
-  | 'tee_flanged_symmetrical' // FFFT symmetrisch
-  | 'tee_flanged_asymmetrical' // FFFT asymmetrisch
-  | 'tee_reducing_equal' // FFQ gleichschenklig
-  | 'tee_reducing_unequal' // FFQ ungleichschenklig
 export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
 
 // DN (Diameter Nominal) values
@@ -63,6 +71,14 @@ export interface ElbowArmLengths {
   outlet: number  // Arm B (outlet) in mm
 }
 
+// Branch configuration for components with branches
+export interface BranchConfig {
+  angle: number // in degrees
+  position: number // position along main axis (0-1)
+  dn: DNValue // DN of branch
+  length: number // length of branch in mm
+}
+
 export interface PipeComponent {
   id: string
   type: PipeComponentType
@@ -75,6 +91,21 @@ export interface PipeComponent {
   armLength?: number // in mm (for tee pieces - deprecated, use teeArmLengths)
   teeArmLengths?: TeeArmLengths // in mm (for tee pieces - individual arm lengths)
   elbowArmLengths?: ElbowArmLengths // in mm (for elbows - individual arm lengths)
+
+  // F-Stück properties
+  flangePosition?: 'inlet' | 'outlet' | 'both' // Which side has flange
+
+  // Branch configurations
+  branch1?: BranchConfig // First branch configuration
+  branch2?: BranchConfig // Second branch configuration
+
+  // Elbow/Bend radius
+  bendRadius?: number // in mm (for FFQ, FRK components)
+
+  // Reducer properties
+  inletDN?: DNValue // For reducers with different inlet/outlet DN
+  outletDN?: DNValue // For reducers with different inlet/outlet DN
+
   price: number // in EUR
   material: MaterialType
   connectionPoints: ConnectionPoint[]
@@ -95,6 +126,21 @@ export interface ComponentTemplate {
   defaultArmLength?: number // for tee pieces - deprecated, use defaultTeeArmLengths
   defaultTeeArmLengths?: TeeArmLengths // for tee pieces - individual arm lengths
   defaultElbowArmLengths?: ElbowArmLengths // for elbows - individual arm lengths
+
+  // F-Stück defaults
+  defaultFlangePosition?: 'inlet' | 'outlet' | 'both'
+
+  // Branch defaults
+  defaultBranch1?: Partial<BranchConfig>
+  defaultBranch2?: Partial<BranchConfig>
+
+  // Bend radius default
+  defaultBendRadius?: number // in mm
+
+  // Reducer defaults
+  defaultInletDN?: DNValue
+  defaultOutletDN?: DNValue
+
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length
   pricePerMMWallThickness?: number // additional price per mm of wall thickness

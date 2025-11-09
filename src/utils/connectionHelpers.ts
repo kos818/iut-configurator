@@ -319,10 +319,10 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       break
     }
 
-    case 'tee_flanged_symmetrical':
-    case 'tee_flanged_asymmetrical':
-    case 'tee_reducing_equal':
-    case 'tee_reducing_unequal': {
+    case 'ffft_symmetrical':
+    case 'ffft_asymmetrical':
+    case 'ffq_equal':
+    case 'ffq_unequal': {
       // Similar to tee
       const armLengths = component.teeArmLengths || {
         inlet: component.armLength || 200,
@@ -367,8 +367,8 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       break
     }
 
-    case 'reducer_concentric':
-    case 'reducer_eccentric':
+    case 'frr_concentric':
+    case 'frr_eccentric':
     case 'reducer': {
       const length = radius * 2
       // For reducer, inlet has larger DN, outlet has smaller DN
