@@ -82,7 +82,11 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleLengthChange = (newLength: number) => {
-    if (selectedComponent.type === 'straight') {
+    if (selectedComponent.type === 'straight' ||
+        selectedComponent.type === 'f_piece' ||
+        selectedComponent.type === 'ff_piece' ||
+        selectedComponent.type === 'ff_piece_one_branch' ||
+        selectedComponent.type === 'ff_piece_two_branches') {
       const oldLength = selectedComponent.length || 1000
       const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
 
@@ -229,7 +233,17 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleArmLengthChange = (arm: 'inlet' | 'outlet' | 'branch', newLength: number) => {
-    if (selectedComponent.type === 'tee') {
+    if (selectedComponent.type === 'tee' ||
+        selectedComponent.type === 'ffft_symmetrical' ||
+        selectedComponent.type === 'ffft_asymmetrical' ||
+        selectedComponent.type === 'ffq_equal' ||
+        selectedComponent.type === 'ffq_unequal' ||
+        selectedComponent.type === 'fffor_one_branch' ||
+        selectedComponent.type === 'fffrk_one_branch' ||
+        selectedComponent.type === 'wye' ||
+        selectedComponent.type === 'wye_angled' ||
+        selectedComponent.type === 'union_straight' ||
+        selectedComponent.type === 'union_angled') {
       const currentArmLengths = selectedComponent.teeArmLengths || {
         inlet: selectedComponent.armLength || 200,
         outlet: selectedComponent.armLength || 200,
@@ -480,7 +494,9 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleElbowArmLengthChange = (arm: 'inlet' | 'outlet', newLength: number) => {
-    if (selectedComponent.type === 'elbow') {
+    if (selectedComponent.type === 'elbow' ||
+        selectedComponent.type === 'frk_equal' ||
+        selectedComponent.type === 'frk_unequal') {
       const defaultArmLength = (selectedComponent.dn / 2) * 3 // 3x radius as default
       const currentArmLengths = selectedComponent.elbowArmLengths || {
         inlet: defaultArmLength,
@@ -572,7 +588,9 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleElbowAngleChange = (newAngle: number) => {
-    if (selectedComponent.type === 'elbow') {
+    if (selectedComponent.type === 'elbow' ||
+        selectedComponent.type === 'frk_equal' ||
+        selectedComponent.type === 'frk_unequal') {
       // When angle changes, we need to reposition the outlet-connected component
       const outletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
 
@@ -728,7 +746,284 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {selectedComponent.type === 'straight' && (
+        {/* Flange position selection for F-Stück components */}
+        {(selectedComponent.type === 'f_piece' ||
+          selectedComponent.type === 'ff_piece' ||
+          selectedComponent.type === 'ff_piece_one_branch' ||
+          selectedComponent.type === 'ff_piece_two_branches') && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-2">
+              Flanschposition
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'inlet' })}
+                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
+                  selectedComponent.flangePosition === 'inlet'
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Eingang
+              </button>
+              <button
+                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'outlet' })}
+                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
+                  selectedComponent.flangePosition === 'outlet'
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Ausgang
+              </button>
+              <button
+                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'both' })}
+                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
+                  selectedComponent.flangePosition === 'both'
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Beide
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bend radius for FFQ and FRK components */}
+        {(selectedComponent.type === 'ffq_equal' ||
+          selectedComponent.type === 'ffq_unequal' ||
+          selectedComponent.type === 'frk_equal' ||
+          selectedComponent.type === 'frk_unequal' ||
+          selectedComponent.type === 'fffrk_one_branch') && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Bogenradius (mm)
+            </label>
+            <input
+              type="number"
+              value={selectedComponent.bendRadius || 150}
+              onChange={(e) => updateComponent(selectedComponent.id, { bendRadius: Number(e.target.value) })}
+              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+              min="50"
+              max="500"
+              step="10"
+            />
+          </div>
+        )}
+
+        {/* Inlet/Outlet DN for reducer components */}
+        {(selectedComponent.type === 'frr_concentric' ||
+          selectedComponent.type === 'frr_eccentric' ||
+          selectedComponent.type === 'frk_equal' ||
+          selectedComponent.type === 'frk_unequal') && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-2">
+              DN-Werte (Reduktion)
+            </label>
+            <div className="space-y-2">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Eingang DN</label>
+                <select
+                  value={selectedComponent.inletDN || selectedComponent.dn}
+                  onChange={(e) => updateComponent(selectedComponent.id, { inletDN: Number(e.target.value) as DNValue })}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Ausgang DN</label>
+                <select
+                  value={selectedComponent.outletDN || Math.max(20, selectedComponent.dn - 10)}
+                  onChange={(e) => updateComponent(selectedComponent.id, { outletDN: Number(e.target.value) as DNValue })}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Branch configuration for components with branches */}
+        {(selectedComponent.type === 'ff_piece_one_branch' ||
+          selectedComponent.type === 'ff_piece_two_branches' ||
+          selectedComponent.type === 'fffor_one_branch' ||
+          selectedComponent.type === 'fffrk_one_branch') && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-2">
+              Abgang 1 Konfiguration
+            </label>
+            <div className="space-y-2 p-3 bg-gray-700 rounded">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Winkel (Grad)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch1?.angle || 90}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch1: {
+                      ...(selectedComponent.branch1 || { position: 0.5, dn: selectedComponent.dn, length: 150 }),
+                      angle: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="0"
+                  max="360"
+                  step="15"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Position (0-1 entlang Hauptachse)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch1?.position || 0.5}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch1: {
+                      ...(selectedComponent.branch1 || { angle: 90, dn: selectedComponent.dn, length: 150 }),
+                      position: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">DN</label>
+                <select
+                  value={selectedComponent.branch1?.dn || selectedComponent.dn}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch1: {
+                      ...(selectedComponent.branch1 || { angle: 90, position: 0.5, length: 150 }),
+                      dn: Number(e.target.value) as DNValue
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Länge (mm)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch1?.length || 150}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch1: {
+                      ...(selectedComponent.branch1 || { angle: 90, position: 0.5, dn: selectedComponent.dn }),
+                      length: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="50"
+                  max="1000"
+                  step="50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Branch 2 configuration for components with two branches */}
+        {selectedComponent.type === 'ff_piece_two_branches' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-2">
+              Abgang 2 Konfiguration
+            </label>
+            <div className="space-y-2 p-3 bg-gray-700 rounded">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Winkel (Grad)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch2?.angle || 90}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch2: {
+                      ...(selectedComponent.branch2 || { position: 0.5, dn: selectedComponent.dn, length: 150 }),
+                      angle: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="0"
+                  max="360"
+                  step="15"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Position (0-1 entlang Hauptachse)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch2?.position || 0.5}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch2: {
+                      ...(selectedComponent.branch2 || { angle: 90, dn: selectedComponent.dn, length: 150 }),
+                      position: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">DN</label>
+                <select
+                  value={selectedComponent.branch2?.dn || selectedComponent.dn}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch2: {
+                      ...(selectedComponent.branch2 || { angle: 90, position: 0.5, length: 150 }),
+                      dn: Number(e.target.value) as DNValue
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Länge (mm)</label>
+                <input
+                  type="number"
+                  value={selectedComponent.branch2?.length || 150}
+                  onChange={(e) => updateComponent(selectedComponent.id, {
+                    branch2: {
+                      ...(selectedComponent.branch2 || { angle: 90, position: 0.5, dn: selectedComponent.dn }),
+                      length: Number(e.target.value)
+                    }
+                  })}
+                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
+                  min="50"
+                  max="1000"
+                  step="50"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(selectedComponent.type === 'straight' ||
+          selectedComponent.type === 'f_piece' ||
+          selectedComponent.type === 'ff_piece' ||
+          selectedComponent.type === 'ff_piece_one_branch' ||
+          selectedComponent.type === 'ff_piece_two_branches') && (
           <div>
             <label className="text-gray-300 text-sm block mb-1">
               Länge (mm)
@@ -745,7 +1040,17 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {selectedComponent.type === 'tee' && (
+        {(selectedComponent.type === 'tee' ||
+          selectedComponent.type === 'ffft_symmetrical' ||
+          selectedComponent.type === 'ffft_asymmetrical' ||
+          selectedComponent.type === 'ffq_equal' ||
+          selectedComponent.type === 'ffq_unequal' ||
+          selectedComponent.type === 'fffor_one_branch' ||
+          selectedComponent.type === 'fffrk_one_branch' ||
+          selectedComponent.type === 'wye' ||
+          selectedComponent.type === 'wye_angled' ||
+          selectedComponent.type === 'union_straight' ||
+          selectedComponent.type === 'union_angled') && (
           <div>
             <label className="text-gray-300 text-sm block mb-2">
               Schenkellängen (mm)
@@ -791,7 +1096,9 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {selectedComponent.type === 'elbow' && (
+        {(selectedComponent.type === 'elbow' ||
+          selectedComponent.type === 'frk_equal' ||
+          selectedComponent.type === 'frk_unequal') && (
           <>
             <div>
               <label className="text-gray-300 text-sm block mb-2">
