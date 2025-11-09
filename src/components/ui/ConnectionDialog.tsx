@@ -79,9 +79,9 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 flex flex-col" style={{ maxHeight: '90vh' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Link2 className="w-5 h-5 text-blue-600" />
             <h2 className="text-lg font-bold text-gray-900">
@@ -96,8 +96,8 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 overflow-y-auto flex-1">
+        {/* Content - Scrollable */}
+        <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           {preselectedConnectionPointId ? (
             <div className="mb-4 p-3 border-2 border-blue-400 bg-blue-50 rounded-lg">
               <p className="text-sm font-semibold text-blue-900 mb-2">
@@ -210,7 +210,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
               <div className="text-sm font-semibold text-gray-700 mb-2">
                 Verfügbare Verbindungspunkte:
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2">
                 {availableConnectionPoints.map((cp) => {
                   const isPreselected = cp.id === preselectedConnectionPointId
                   return (
@@ -267,7 +267,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <button
             onClick={onCancel}
             className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded transition-colors"

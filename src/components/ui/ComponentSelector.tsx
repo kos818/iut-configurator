@@ -186,8 +186,8 @@ export const ComponentSelector: React.FC = () => {
 
   return (
     <>
-      <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+      <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col" style={{ maxHeight: '90vh' }}>
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2 flex-shrink-0">
           {selectedGroup && (
             <button
               onClick={() => setSelectedGroup(null)}
@@ -204,7 +204,7 @@ export const ComponentSelector: React.FC = () => {
 
         {/* Show groups if no group selected */}
         {!selectedGroup && (
-          <div className="space-y-2">
+          <div className="space-y-2 overflow-y-auto">
             {groups.map((group) => (
               <button
                 key={group}
@@ -231,7 +231,7 @@ export const ComponentSelector: React.FC = () => {
 
         {/* Show components when group is selected */}
         {selectedGroup && (
-          <div className="space-y-2">
+          <div className="space-y-2 overflow-y-auto">
             <div className="text-sm text-gray-400 mb-3">
               {componentGroupDescriptions[selectedGroup]}
             </div>
