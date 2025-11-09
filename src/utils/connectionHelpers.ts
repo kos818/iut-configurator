@@ -371,8 +371,9 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     case 'frr_eccentric':
     case 'reducer': {
       const length = radius * 2
-      // For reducer, inlet has larger DN, outlet has smaller DN
-      // This is a simplification - in reality user should be able to set both
+      const inletDN = component.inletDN || dn
+      const outletDN = component.outletDN || (Math.max(20, dn - 10) as DNValue)
+
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
@@ -380,7 +381,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         label: labels[0], // A
         position: new Vector3(0, -length / 2, 0),
         direction: new Vector3(0, -1, 0),
-        dn, // larger DN
+        dn: inletDN,
         connectedTo: null,
       })
       points.push({
@@ -390,7 +391,215 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         label: labels[1], // B
         position: new Vector3(0, length / 2, 0),
         direction: new Vector3(0, 1, 0),
-        dn: Math.max(20, dn - 10) as DNValue, // smaller DN (simplified)
+        dn: outletDN,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'f_piece':
+    case 'ff_piece': {
+      // F-Stück / FF-Stück - straight pipe with flanges
+      const lengthM = (component.length || 500) / 1000
+
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -lengthM / 2, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(0, lengthM / 2, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'ff_piece_one_branch':
+    case 'fffor_one_branch':
+    case 'fffrk_one_branch': {
+      // FF-Stück with one branch
+      const lengthM = (component.length || 500) / 1000
+      const branch = component.branch1 || { angle: 90, position: 0.5, dn: dn, length: 150 }
+      const branchLengthM = branch.length / 1000
+      const branchAngleRad = (branch.angle * Math.PI) / 180
+      const branchPosM = (branch.position * lengthM) - (lengthM / 2) // Position along main axis
+
+      // Main inlet
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -lengthM / 2, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+
+      // Main outlet
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(0, lengthM / 2, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+
+      // Branch
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(
+          branchLengthM * Math.sin(branchAngleRad),
+          branchPosM,
+          branchLengthM * Math.cos(branchAngleRad)
+        ),
+        direction: new Vector3(
+          Math.sin(branchAngleRad),
+          0,
+          Math.cos(branchAngleRad)
+        ).normalize(),
+        dn: branch.dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'ff_piece_two_branches': {
+      // FF-Stück with two branches
+      const lengthM = (component.length || 600) / 1000
+      const branch1 = component.branch1 || { angle: 90, position: 0.35, dn: dn, length: 150 }
+      const branch2 = component.branch2 || { angle: 90, position: 0.65, dn: dn, length: 150 }
+
+      // Main inlet
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -lengthM / 2, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+
+      // Main outlet
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(0, lengthM / 2, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+
+      // Branch 1
+      const branch1LengthM = branch1.length / 1000
+      const branch1AngleRad = (branch1.angle * Math.PI) / 180
+      const branch1PosM = (branch1.position * lengthM) - (lengthM / 2)
+
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(
+          branch1LengthM * Math.sin(branch1AngleRad),
+          branch1PosM,
+          branch1LengthM * Math.cos(branch1AngleRad)
+        ),
+        direction: new Vector3(
+          Math.sin(branch1AngleRad),
+          0,
+          Math.cos(branch1AngleRad)
+        ).normalize(),
+        dn: branch1.dn,
+        connectedTo: null,
+      })
+
+      // Branch 2
+      const branch2LengthM = branch2.length / 1000
+      const branch2AngleRad = (branch2.angle * Math.PI) / 180
+      const branch2PosM = (branch2.position * lengthM) - (lengthM / 2)
+
+      points.push({
+        id: `${component.id}-branch2`,
+        componentId: component.id,
+        type: 'branch2',
+        label: labels[3], // D
+        position: new Vector3(
+          -branch2LengthM * Math.sin(branch2AngleRad), // Opposite side
+          branch2PosM,
+          branch2LengthM * Math.cos(branch2AngleRad)
+        ),
+        direction: new Vector3(
+          -Math.sin(branch2AngleRad),
+          0,
+          Math.cos(branch2AngleRad)
+        ).normalize(),
+        dn: branch2.dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'frk_equal':
+    case 'frk_unequal': {
+      // FRK-Stück - reducing elbow
+      const armLengths = component.elbowArmLengths || { inlet: 200, outlet: 200 }
+      const inletLengthM = armLengths.inlet / 1000
+      const outletLengthM = armLengths.outlet / 1000
+      const inletDN = component.inletDN || dn
+      const outletDN = component.outletDN || (Math.max(20, dn - 10) as DNValue)
+      const angleRad = ((component.angle || 90) * Math.PI) / 180
+
+      // Inlet
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -inletLengthM, 0),
+        direction: new Vector3(0, -1, 0),
+        dn: inletDN,
+        connectedTo: null,
+      })
+
+      // Outlet (rotated by angle)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(
+          outletLengthM * Math.sin(angleRad),
+          outletLengthM * Math.cos(angleRad),
+          0
+        ),
+        direction: new Vector3(
+          Math.sin(angleRad),
+          Math.cos(angleRad),
+          0
+        ).normalize(),
+        dn: outletDN,
         connectedTo: null,
       })
       break

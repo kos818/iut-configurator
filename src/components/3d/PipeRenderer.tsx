@@ -34,6 +34,10 @@ export const PipeRenderer: React.FC = () => {
 
         switch (component.type) {
           case 'straight':
+          case 'f_piece':
+          case 'ff_piece':
+          case 'ff_piece_one_branch':
+          case 'ff_piece_two_branches':
             return (
               <StraightPipe
                 key={component.id}
@@ -47,6 +51,8 @@ export const PipeRenderer: React.FC = () => {
               />
             )
           case 'elbow':
+          case 'frk_equal':
+          case 'frk_unequal':
             return (
               <ElbowPipe
                 key={component.id}
@@ -66,6 +72,8 @@ export const PipeRenderer: React.FC = () => {
           case 'ffft_asymmetrical':
           case 'ffq_equal':
           case 'ffq_unequal':
+          case 'fffor_one_branch':
+          case 'fffrk_one_branch':
           case 'wye':
           case 'wye_angled':
           case 'union_straight':
