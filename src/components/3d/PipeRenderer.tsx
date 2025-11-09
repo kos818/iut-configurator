@@ -4,6 +4,7 @@ import { DN_TO_MM } from '../../types'
 import { StraightPipe } from './StraightPipe'
 import { ElbowPipe } from './ElbowPipe'
 import { TeePipe } from './TeePipe'
+import { YPipe } from './YPipe'
 import { CrossPipe } from './CrossPipe'
 import { Valve } from './Valve'
 import { CheckValve } from './CheckValve'
@@ -74,8 +75,6 @@ export const PipeRenderer: React.FC = () => {
           case 'ffq_unequal':
           case 'fffor_one_branch':
           case 'fffrk_one_branch':
-          case 'wye':
-          case 'wye_angled':
           case 'union_straight':
           case 'union_angled':
             return (
@@ -86,6 +85,36 @@ export const PipeRenderer: React.FC = () => {
                 inletLength={component.teeArmLengths?.inlet || component.armLength || 200}
                 outletLength={component.teeArmLengths?.outlet || component.armLength || 200}
                 branchLength={component.teeArmLengths?.branch || component.armLength || 200}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
+          case 'wye':
+            return (
+              <YPipe
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                armLength={component.armLength || 200}
+                leftAngle={Math.PI / 4} // 45° symmetric
+                rightAngle={Math.PI / 4} // 45° symmetric
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
+          case 'wye_angled':
+            return (
+              <YPipe
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                armLength={component.armLength || 200}
+                leftAngle={Math.PI / 6} // 30° for left
+                rightAngle={((component.angle || 45) * Math.PI) / 180} // configurable for right
                 position={position}
                 rotation={rotation}
                 selected={selected}

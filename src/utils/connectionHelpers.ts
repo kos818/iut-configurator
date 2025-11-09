@@ -235,42 +235,87 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       break
     }
 
-    case 'wye':
-    case 'wye_angled': {
-      // Y-shaped branch (Hosenrohr)
+    case 'wye': {
+      // Hosenrohr gerade: Two symmetric inlets merge into one outlet (Y-shape)
       const armLengthM = (component.armLength || 200) / 1000
-      const angle = component.type === 'wye_angled' ? ((component.angle || 45) * Math.PI / 180) : 0
+      const branchAngle = 45 * Math.PI / 180 // 45° angle for symmetric branches
 
-      // Inlet (bottom)
+      // Inlet 1 (left branch, coming from bottom-left at 45°)
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(0, -armLengthM, 0),
-        direction: new Vector3(0, -1, 0),
+        position: new Vector3(-armLengthM * Math.sin(branchAngle), -armLengthM * Math.cos(branchAngle), 0),
+        direction: new Vector3(-Math.sin(branchAngle), -Math.cos(branchAngle), 0).normalize(),
         dn,
         connectedTo: null,
       })
-      // Outlet (top left)
-      points.push({
-        id: `${component.id}-outlet`,
-        componentId: component.id,
-        type: 'outlet',
-        label: labels[1], // B
-        position: new Vector3(-armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
-        direction: new Vector3(-Math.sin(angle), Math.cos(angle), 0).normalize(),
-        dn,
-        connectedTo: null,
-      })
-      // Branch (top right)
+
+      // Inlet 2 (right branch, coming from bottom-right at 45°)
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
+        label: labels[1], // B
+        position: new Vector3(armLengthM * Math.sin(branchAngle), -armLengthM * Math.cos(branchAngle), 0),
+        direction: new Vector3(Math.sin(branchAngle), -Math.cos(branchAngle), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+
+      // Outlet (top, straight up)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
         label: labels[2], // C
-        position: new Vector3(armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
-        direction: new Vector3(Math.sin(angle), Math.cos(angle), 0).normalize(),
+        position: new Vector3(0, armLengthM, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'wye_angled': {
+      // Hosenrohr abgewinkelt: Two inlets at different angles merge into one outlet
+      const armLengthM = (component.armLength || 200) / 1000
+      const angle1 = 30 * Math.PI / 180 // First inlet at 30°
+      const angle2 = ((component.angle || 45) * Math.PI / 180) // Second inlet at configurable angle
+
+      // Inlet 1 (left branch)
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(-armLengthM * Math.sin(angle1), -armLengthM * Math.cos(angle1), 0),
+        direction: new Vector3(-Math.sin(angle1), -Math.cos(angle1), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+
+      // Inlet 2 (right branch, at configurable angle)
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[1], // B
+        position: new Vector3(armLengthM * Math.sin(angle2), -armLengthM * Math.cos(angle2), 0),
+        direction: new Vector3(Math.sin(angle2), -Math.cos(angle2), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+
+      // Outlet (top, straight up)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[2], // C
+        position: new Vector3(0, armLengthM, 0),
+        direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,
       })
