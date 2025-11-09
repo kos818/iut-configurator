@@ -4,9 +4,12 @@ import { DN_TO_MM } from '../../types'
 import { StraightPipe } from './StraightPipe'
 import { ElbowPipe } from './ElbowPipe'
 import { TeePipe } from './TeePipe'
+import { CrossPipe } from './CrossPipe'
 import { Valve } from './Valve'
+import { CheckValve } from './CheckValve'
 import { Flange } from './Flange'
 import { Reducer } from './Reducer'
+import { Cap } from './Cap'
 import { ConnectionFlangeVisualizer } from './ConnectionFlangeVisualizer'
 
 export const PipeRenderer: React.FC = () => {
@@ -73,9 +76,34 @@ export const PipeRenderer: React.FC = () => {
                 material={component.material}
               />
             )
+          case 'cross':
+            return (
+              <CrossPipe
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                armLength={component.armLength || 200}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
           case 'valve':
             return (
               <Valve
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
+          case 'check_valve':
+            return (
+              <CheckValve
                 key={component.id}
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
@@ -100,6 +128,18 @@ export const PipeRenderer: React.FC = () => {
           case 'reducer':
             return (
               <Reducer
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
+          case 'cap':
+            return (
+              <Cap
                 key={component.id}
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
