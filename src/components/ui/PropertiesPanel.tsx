@@ -709,6 +709,25 @@ export const PropertiesPanel: React.FC = () => {
           </select>
         </div>
 
+        {template?.availableWallThicknesses && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Materialstärke / Wandstärke (mm)
+            </label>
+            <select
+              value={selectedComponent.wallThickness || template.defaultWallThickness || 3}
+              onChange={(e) => updateComponent(selectedComponent.id, { wallThickness: Number(e.target.value) })}
+              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+            >
+              {template.availableWallThicknesses.map((thickness) => (
+                <option key={thickness} value={thickness}>
+                  {thickness} mm
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {selectedComponent.type === 'straight' && (
           <div>
             <label className="text-gray-300 text-sm block mb-1">

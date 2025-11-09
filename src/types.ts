@@ -50,6 +50,7 @@ export interface PipeComponent {
   position: Vector3
   rotation: Vector3
   dn: DNValue // Changed from diameter
+  wallThickness?: number // in mm (wall thickness / Wandstärke)
   length?: number // in mm (for straight pipes)
   angle?: number // in degrees (for elbows)
   armLength?: number // in mm (for tee pieces - deprecated, use teeArmLengths)
@@ -68,6 +69,8 @@ export interface ComponentTemplate {
   description: string
   group: string // Component group for organization
   defaultDN: DNValue
+  defaultWallThickness?: number // default wall thickness in mm
+  availableWallThicknesses?: number[] // available wall thicknesses in mm
   defaultLength?: number
   defaultAngle?: number
   defaultArmLength?: number // for tee pieces - deprecated, use defaultTeeArmLengths
@@ -75,6 +78,7 @@ export interface ComponentTemplate {
   defaultElbowArmLengths?: ElbowArmLengths // for elbows - individual arm lengths
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length
+  pricePerMMWallThickness?: number // additional price per mm of wall thickness
   availableDNs: DNValue[]
   material: MaterialType
   // Define connection points (relative positions will be calculated based on DN)

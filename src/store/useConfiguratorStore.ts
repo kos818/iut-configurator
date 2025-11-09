@@ -11,9 +11,11 @@ const calculateComponentPrice = (component: Partial<PipeComponent>, template?: C
 
   const basePrice = tmpl.basePrice
   const lengthPrice = (tmpl.pricePerMM && component.length) ? tmpl.pricePerMM * component.length : 0
+  const wallThicknessPrice = (tmpl.pricePerMMWallThickness && component.wallThickness)
+    ? tmpl.pricePerMMWallThickness * component.wallThickness : 0
   const materialMultiplier = materialMultipliers[component.material || 'steel'] || 1.0
 
-  return (basePrice + lengthPrice) * materialMultiplier
+  return (basePrice + lengthPrice + wallThicknessPrice) * materialMultiplier
 }
 
 interface ConfiguratorState {
@@ -84,6 +86,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       position: position || new Vector3(0, 0, 0),
       rotation: new Vector3(0, 0, 0),
       dn,
+      wallThickness: template.defaultWallThickness,
       length: template.defaultLength,
       angle: template.defaultAngle,
       armLength: template.defaultArmLength,
@@ -92,6 +95,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,
+        wallThickness: template.defaultWallThickness,
         material
       }, template),
       material,
@@ -152,8 +156,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     const newComponents = get().components.map((c) => {
       if (c.id === id) {
         const updated = { ...c, ...updates }
-        // Recalculate price if material, dn, or length changed
-        if (updates.material || updates.dn || updates.length) {
+        // Recalculate price if material, dn, length, or wallThickness changed
+        if (updates.material || updates.dn || updates.length || updates.wallThickness) {
           updated.price = calculateComponentPrice(updated)
         }
         // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed
@@ -223,8 +227,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   updateAllComponents: (updates: Partial<PipeComponent>) => {
     const newComponents = get().components.map((c) => {
       const updated = { ...c, ...updates }
-      // Recalculate price if material, dn, or length changed
-      if (updates.material || updates.dn || updates.length) {
+      // Recalculate price if material, dn, length, or wallThickness changed
+      if (updates.material || updates.dn || updates.length || updates.wallThickness) {
         updated.price = calculateComponentPrice(updated)
       }
       // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed
