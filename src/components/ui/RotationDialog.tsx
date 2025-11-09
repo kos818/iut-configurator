@@ -12,8 +12,10 @@ interface RotationDialogProps {
   oldValue: number
   newValue: number
   connectedComponents: ConnectedComponentInfo[]
+  initialSelectedComponents?: string[]
   onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => void
   onCancel: () => void
+  onRemember?: (selectedComponentIds: string[]) => void
 }
 
 export const RotationDialog: React.FC<RotationDialogProps> = ({
@@ -21,12 +23,16 @@ export const RotationDialog: React.FC<RotationDialogProps> = ({
   oldValue,
   newValue,
   connectedComponents,
+  initialSelectedComponents,
   onConfirm,
   onCancel,
+  onRemember,
 }) => {
   // Track which connected components should be rotated
   const [selectedComponents, setSelectedComponents] = useState<Set<string>>(
-    new Set(connectedComponents.map(c => c.id))
+    initialSelectedComponents
+      ? new Set(initialSelectedComponents)
+      : new Set(connectedComponents.map(c => c.id))
   )
 
   const toggleComponent = (id: string) => {
@@ -48,7 +54,7 @@ export const RotationDialog: React.FC<RotationDialogProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 100000 }}>
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-blue-50">
@@ -122,28 +128,42 @@ export const RotationDialog: React.FC<RotationDialogProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded transition-colors"
-          >
-            Abbrechen
-          </button>
-          <button
-            onClick={() => onConfirm(false, [])}
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors font-medium"
-          >
-            Nur dieses Element
-          </button>
-          {connectedComponents.length > 0 && (
+        <div className="flex items-center justify-between gap-2 p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex gap-2">
             <button
-              onClick={() => onConfirm(true, Array.from(selectedComponents))}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
-              disabled={selectedComponents.size === 0}
+              onClick={onCancel}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded transition-colors"
             >
-              Ausgewählte mitdrehen ({selectedComponents.size})
+              Abbrechen
             </button>
-          )}
+            {onRemember && connectedComponents.length > 0 && (
+              <button
+                onClick={() => {
+                  onRemember(Array.from(selectedComponents))
+                }}
+                className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded transition-colors border border-blue-300"
+              >
+                Auswahl merken
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onConfirm(false, [])}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors font-medium"
+            >
+              Nur dieses Element
+            </button>
+            {connectedComponents.length > 0 && (
+              <button
+                onClick={() => onConfirm(true, Array.from(selectedComponents))}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
+                disabled={selectedComponents.size === 0}
+              >
+                Ausgewählte mitdrehen ({selectedComponents.size})
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

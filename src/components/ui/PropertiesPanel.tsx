@@ -34,6 +34,9 @@ export const PropertiesPanel: React.FC = () => {
     onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => void
   } | null>(null)
 
+  // State for remembered rotation selection
+  const [rememberedRotationSelection, setRememberedRotationSelection] = useState<string[] | null>(null)
+
   const selectedComponent = components.find((c) => c.id === selectedId)
 
   if (!selectedComponent) {
@@ -352,6 +355,12 @@ export const PropertiesPanel: React.FC = () => {
     // Find all directly connected components
     const connectedComps = findConnectedComponents(selectedComponent)
 
+    // If there's a remembered selection, apply it directly without dialog
+    if (rememberedRotationSelection !== null) {
+      applyRotation(axis, normalizedValue, true, rememberedRotationSelection)
+      return
+    }
+
     // Show rotation dialog
     setRotationDialog({
       show: true,
@@ -364,6 +373,15 @@ export const PropertiesPanel: React.FC = () => {
         setRotationDialog(null)
       }
     })
+  }
+
+  const handleRememberRotationSelection = (selectedComponentIds: string[]) => {
+    setRememberedRotationSelection(selectedComponentIds)
+    setRotationDialog(null)
+  }
+
+  const handleClearRotationSelection = () => {
+    setRememberedRotationSelection(null)
   }
 
   // Apply rotation with optional propagation to connected components
@@ -825,9 +843,24 @@ export const PropertiesPanel: React.FC = () => {
         </div>
 
         <div>
-          <label className="text-gray-300 text-sm block mb-2">
-            Rotation (Grad)
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-gray-300 text-sm">
+              Rotation (Grad)
+            </label>
+            {rememberedRotationSelection !== null && (
+              <button
+                onClick={handleClearRotationSelection}
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Auswahl aufheben
+              </button>
+            )}
+          </div>
+          {rememberedRotationSelection !== null && (
+            <div className="mb-2 px-2 py-1 bg-blue-900 bg-opacity-30 border border-blue-500 rounded text-xs text-blue-300">
+              ℹ️ Auswahl gemerkt ({rememberedRotationSelection.length} Komponenten)
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2">
             {(['x', 'y', 'z'] as const).map((axis) => {
               // Normalize rotation to 0-360 range for display
@@ -942,8 +975,10 @@ export const PropertiesPanel: React.FC = () => {
           oldValue={rotationDialog.oldValue}
           newValue={rotationDialog.newValue}
           connectedComponents={rotationDialog.connectedComponents}
+          initialSelectedComponents={rememberedRotationSelection || undefined}
           onConfirm={rotationDialog.onConfirm}
           onCancel={() => setRotationDialog(null)}
+          onRemember={handleRememberRotationSelection}
         />
       )}
     </div>
