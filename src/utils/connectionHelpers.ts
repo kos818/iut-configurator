@@ -235,6 +235,140 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       break
     }
 
+    case 'wye':
+    case 'wye_angled': {
+      // Y-shaped branch (Hosenrohr)
+      const armLengthM = (component.armLength || 200) / 1000
+      const angle = component.type === 'wye_angled' ? ((component.angle || 45) * Math.PI / 180) : 0
+
+      // Inlet (bottom)
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -armLengthM, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+      // Outlet (top left)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(-armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
+        direction: new Vector3(-Math.sin(angle), Math.cos(angle), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+      // Branch (top right)
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
+        direction: new Vector3(Math.sin(angle), Math.cos(angle), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'union_straight':
+    case 'union_angled': {
+      // Union piece (Vereinigungsstück) - two inlets, one outlet
+      const armLengthM = (component.armLength || 200) / 1000
+      const angle = component.type === 'union_angled' ? ((component.angle || 45) * Math.PI / 180) : 0
+
+      // Inlet 1 (top left)
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(-armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
+        direction: new Vector3(Math.sin(angle), -Math.cos(angle), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+      // Inlet 2 (top right)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
+        direction: new Vector3(-Math.sin(angle), -Math.cos(angle), 0).normalize(),
+        dn,
+        connectedTo: null,
+      })
+      // Outlet (bottom)
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(0, -armLengthM, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'tee_flanged_symmetrical':
+    case 'tee_flanged_asymmetrical':
+    case 'tee_reducing_equal':
+    case 'tee_reducing_unequal': {
+      // Similar to tee
+      const armLengths = component.teeArmLengths || {
+        inlet: component.armLength || 200,
+        outlet: component.armLength || 200,
+        branch: component.armLength || 200
+      }
+
+      const inletLengthM = armLengths.inlet / 1000
+      const outletLengthM = armLengths.outlet / 1000
+      const branchLengthM = armLengths.branch / 1000
+
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(-inletLengthM, 0, 0),
+        direction: new Vector3(-1, 0, 0),
+        dn,
+        connectedTo: null,
+      })
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(outletLengthM, 0, 0),
+        direction: new Vector3(1, 0, 0),
+        dn,
+        connectedTo: null,
+      })
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(0, branchLengthM, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+      })
+      break
+    }
+
+    case 'reducer_concentric':
+    case 'reducer_eccentric':
     case 'reducer': {
       const length = radius * 2
       // For reducer, inlet has larger DN, outlet has smaller DN

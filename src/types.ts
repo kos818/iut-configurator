@@ -1,6 +1,25 @@
 import { Vector3 } from 'three'
 
-export type PipeComponentType = 'straight' | 'elbow' | 'tee' | 'cross' | 'valve' | 'check_valve' | 'flange' | 'reducer' | 'cap'
+export type PipeComponentType =
+  | 'straight'
+  | 'elbow'
+  | 'tee'
+  | 'cross'
+  | 'valve'
+  | 'check_valve'
+  | 'flange'
+  | 'reducer'
+  | 'cap'
+  | 'wye' // Y-Verzweigung (Hosenrohr)
+  | 'wye_angled' // Y-Verzweigung abgewinkelt
+  | 'union_straight' // Vereinigungsstück gerade
+  | 'union_angled' // Vereinigungsstück abgewinkelt
+  | 'reducer_concentric' // FRR konzentrisch
+  | 'reducer_eccentric' // FRR exzentrisch
+  | 'tee_flanged_symmetrical' // FFFT symmetrisch
+  | 'tee_flanged_asymmetrical' // FFFT asymmetrisch
+  | 'tee_reducing_equal' // FFQ gleichschenklig
+  | 'tee_reducing_unequal' // FFQ ungleichschenklig
 export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
 
 // DN (Diameter Nominal) values
