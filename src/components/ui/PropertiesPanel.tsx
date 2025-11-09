@@ -4,6 +4,7 @@ import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 import { ConnectionMethod, ConnectionPoint, DNValue } from '../../types'
 import { GlobalChangeDialog } from './GlobalChangeDialog'
+import { RotationDialog } from './RotationDialog'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -21,6 +22,16 @@ export const PropertiesPanel: React.FC = () => {
     oldValue: string | number
     newValue: string | number
     onConfirm: (applyGlobally: boolean) => void
+  } | null>(null)
+
+  // State for rotation dialog
+  const [rotationDialog, setRotationDialog] = useState<{
+    show: boolean
+    axis: 'x' | 'y' | 'z'
+    oldValue: number
+    newValue: number
+    connectedComponents: Array<{ id: string; name: string; type: string }>
+    onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => void
   } | null>(null)
 
   const selectedComponent = components.find((c) => c.id === selectedId)
@@ -303,14 +314,68 @@ export const PropertiesPanel: React.FC = () => {
     updateComponent(selectedComponent.id, { position: newPosition })
   }
 
+  // Helper function to find all directly connected components
+  const findConnectedComponents = (component: typeof selectedComponent) => {
+    if (!component) return []
+
+    const connectedComponentsList: Array<{ id: string; name: string; type: string }> = []
+    const connectedIds = new Set<string>()
+
+    component.connectionPoints.forEach((cp: ConnectionPoint) => {
+      if (cp.connectedTo) {
+        const connectedComp = components.find((c) =>
+          c.connectionPoints.some((p) => p.id === cp.connectedTo)
+        )
+        if (connectedComp && !connectedIds.has(connectedComp.id)) {
+          connectedIds.add(connectedComp.id)
+          const template = componentTemplates.find((t) => t.type === connectedComp.type)
+          connectedComponentsList.push({
+            id: connectedComp.id,
+            name: template?.name || connectedComp.type,
+            type: connectedComp.type,
+          })
+        }
+      }
+    })
+
+    return connectedComponentsList
+  }
+
   const handleRotationChange = (axis: 'x' | 'y' | 'z', value: number) => {
     // Normalize value to 0-360 range
     let normalizedValue = value % 360
     if (normalizedValue < 0) normalizedValue += 360
 
+    // Get current rotation in degrees
+    const oldValueDegrees = (selectedComponent.rotation[axis] * 180) / Math.PI
+
+    // Find all directly connected components
+    const connectedComps = findConnectedComponents(selectedComponent)
+
+    // Show rotation dialog
+    setRotationDialog({
+      show: true,
+      axis,
+      oldValue: oldValueDegrees,
+      newValue: normalizedValue,
+      connectedComponents: connectedComps,
+      onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => {
+        applyRotation(axis, normalizedValue, rotateConnected, selectedComponentIds)
+        setRotationDialog(null)
+      }
+    })
+  }
+
+  // Apply rotation with optional propagation to connected components
+  const applyRotation = (
+    axis: 'x' | 'y' | 'z',
+    valueDegrees: number,
+    rotateConnected: boolean,
+    selectedComponentIds: string[]
+  ) => {
     const newRotation = selectedComponent.rotation.clone()
     const oldRotation = selectedComponent.rotation.clone()
-    newRotation[axis] = (normalizedValue * Math.PI) / 180 // Convert to radians
+    newRotation[axis] = (valueDegrees * Math.PI) / 180 // Convert to radians
 
     // Calculate rotation difference
     const rotationDiff = newRotation[axis] - oldRotation[axis]
@@ -318,19 +383,20 @@ export const PropertiesPanel: React.FC = () => {
     // Update the component's rotation
     updateComponent(selectedComponent.id, { rotation: newRotation })
 
-    // Find all connected components and rotate them around this component
-    const connectedComponents = selectedComponent.connectionPoints
-      .filter((cp: ConnectionPoint) => cp.connectedTo !== null)
-      .map((cp: ConnectionPoint) => {
-        // Find the component that owns the connected connection point
-        return components.find((c) =>
-          c.connectionPoints.some((p) => p.id === cp.connectedTo)
-        )
-      })
-      .filter((c) => c !== undefined)
+    if (!rotateConnected || selectedComponentIds.length === 0) {
+      // Only rotate this component, no propagation
+      return
+    }
 
     // Helper function to rotate a component and all its connected components recursively
-    const rotateComponentTree = (componentId: string, rotationAxis: 'x' | 'y' | 'z', rotationDelta: number, pivotPoint: Vector3, visitedIds: Set<string> = new Set()) => {
+    const rotateComponentTree = (
+      componentId: string,
+      rotationAxis: 'x' | 'y' | 'z',
+      rotationDelta: number,
+      pivotPoint: Vector3,
+      allowedIds: Set<string>,
+      visitedIds: Set<string> = new Set()
+    ) => {
       if (visitedIds.has(componentId)) return
       visitedIds.add(componentId)
 
@@ -379,17 +445,18 @@ export const PropertiesPanel: React.FC = () => {
           const connectedComp = freshComponents.find((c) =>
             c.connectionPoints.some((p) => p.id === cp.connectedTo)
           )
-          if (connectedComp && connectedComp.id !== selectedComponent.id) {
-            rotateComponentTree(connectedComp.id, rotationAxis, rotationDelta, pivotPoint, visitedIds)
+          if (connectedComp && connectedComp.id !== selectedComponent.id && allowedIds.has(connectedComp.id)) {
+            rotateComponentTree(connectedComp.id, rotationAxis, rotationDelta, pivotPoint, allowedIds, visitedIds)
           }
         }
       })
     }
 
-    // Rotate all connected component trees
-    connectedComponents.forEach((comp) => {
-      if (comp && rotationDiff !== 0) {
-        rotateComponentTree(comp.id, axis, rotationDiff, selectedComponent.position)
+    // Rotate selected connected component trees
+    const allowedIds = new Set(selectedComponentIds)
+    selectedComponentIds.forEach((compId) => {
+      if (rotationDiff !== 0) {
+        rotateComponentTree(compId, axis, rotationDiff, selectedComponent.position, allowedIds)
       }
     })
   }
@@ -865,6 +932,18 @@ export const PropertiesPanel: React.FC = () => {
           newValue={globalChangeDialog.newValue}
           onConfirm={globalChangeDialog.onConfirm}
           onCancel={() => setGlobalChangeDialog(null)}
+        />
+      )}
+
+      {/* Rotation Dialog */}
+      {rotationDialog && (
+        <RotationDialog
+          axis={rotationDialog.axis}
+          oldValue={rotationDialog.oldValue}
+          newValue={rotationDialog.newValue}
+          connectedComponents={rotationDialog.connectedComponents}
+          onConfirm={rotationDialog.onConfirm}
+          onCancel={() => setRotationDialog(null)}
         />
       )}
     </div>
