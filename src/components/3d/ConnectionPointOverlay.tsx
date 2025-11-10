@@ -197,6 +197,52 @@ export const ConnectionPointUI: React.FC = () => {
     setMenuOpenForCP(null)
   }
 
+  // Calculate adjusted position to keep menu within viewport
+  const getAdjustedMenuPosition = (x: number, y: number) => {
+    const menuWidth = 240
+    const menuHeight = 400
+    const padding = 10
+
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+
+    let adjustedX = x
+    let adjustedY = y
+    let translateX = '-50%'
+    let translateY = '-50%'
+
+    // Check right boundary
+    if (x + menuWidth / 2 + padding > viewportWidth) {
+      // Position to the left of the connection point
+      adjustedX = x - menuWidth / 2 - 20
+      translateX = '0%'
+    }
+
+    // Check left boundary
+    if (x - menuWidth / 2 - padding < 0) {
+      // Position to the right of the connection point
+      adjustedX = x + 20
+      translateX = '0%'
+    }
+
+    // Check bottom boundary
+    if (y + menuHeight / 2 + padding > viewportHeight) {
+      // Position above the connection point
+      adjustedY = y - menuHeight / 2 - 20
+      translateY = '0%'
+    }
+
+    // Check top boundary
+    if (y - menuHeight / 2 - padding < 0) {
+      // Position below the connection point
+      adjustedY = y + 20
+      translateY = '0%'
+    }
+
+    return { x: adjustedX, y: adjustedY, translateX, translateY }
+  }
+
   return (
     <div
       style={{
@@ -213,15 +259,16 @@ export const ConnectionPointUI: React.FC = () => {
         if (!pos.isVisible) return null
 
         const isMenuOpen = menuOpenForCP === pos.connectionPointId
+        const adjustedPos = isMenuOpen ? getAdjustedMenuPosition(pos.x, pos.y) : { x: pos.x, y: pos.y, translateX: '-50%', translateY: '-50%' }
 
         return (
           <div
             key={pos.connectionPointId}
             style={{
               position: 'absolute',
-              left: `${pos.x}px`,
-              top: `${pos.y}px`,
-              transform: 'translate(-50%, -50%)',
+              left: `${adjustedPos.x}px`,
+              top: `${adjustedPos.y}px`,
+              transform: `translate(${adjustedPos.translateX}, ${adjustedPos.translateY})`,
               pointerEvents: 'auto',
               zIndex: isMenuOpen ? 10000 : 1000,
             }}
