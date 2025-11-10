@@ -33,6 +33,7 @@ interface ConfiguratorState {
     isConfigured: boolean
     defaultMaterial: string
     defaultDN: number
+    defaultWallThickness: number
   }
 
   // Actions
@@ -46,7 +47,7 @@ interface ConfiguratorState {
   setQuickAddConnectionPoint: (connectionPointId: string | null) => void
   setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => void
   setDialogSelectedConnectionPoint: (connectionPointId: string | null) => void
-  setProjectSettings: (material: string, dn: number) => void
+  setProjectSettings: (material: string, dn: number, wallThickness: number) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -71,6 +72,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     isConfigured: false,
     defaultMaterial: 'steel',
     defaultDN: 50,
+    defaultWallThickness: 3,
   },
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
@@ -79,6 +81,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     // Use project defaults if configured
     const material = projectSettings.isConfigured ? (projectSettings.defaultMaterial as MaterialType) : template.material
     const dn = projectSettings.isConfigured ? projectSettings.defaultDN as any : template.defaultDN
+    const wallThickness = projectSettings.isConfigured ? projectSettings.defaultWallThickness : template.defaultWallThickness
 
     const newComponent: PipeComponent = {
       id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -86,7 +89,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       position: position || new Vector3(0, 0, 0),
       rotation: new Vector3(0, 0, 0),
       dn,
-      wallThickness: template.defaultWallThickness,
+      wallThickness,
       length: template.defaultLength,
       angle: template.defaultAngle,
       armLength: template.defaultArmLength,
@@ -226,12 +229,13 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     set({ dialogSelectedConnectionPoint: connectionPointId })
   },
 
-  setProjectSettings: (material: string, dn: number) => {
+  setProjectSettings: (material: string, dn: number, wallThickness: number) => {
     set({
       projectSettings: {
         isConfigured: true,
         defaultMaterial: material,
         defaultDN: dn,
+        defaultWallThickness: wallThickness,
       },
     })
   },

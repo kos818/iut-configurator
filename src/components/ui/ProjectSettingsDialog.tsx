@@ -4,7 +4,7 @@ import { DNValue } from '../../types'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 
 interface ProjectSettingsDialogProps {
-  onConfirm: (defaultMaterial: string, defaultDN: DNValue) => void
+  onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultWallThickness: number) => void
 }
 
 export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
@@ -12,9 +12,13 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
 }) => {
   const [selectedMaterial, setSelectedMaterial] = useState<string>('steel')
   const [selectedDN, setSelectedDN] = useState<DNValue>(50)
+  const [selectedWallThickness, setSelectedWallThickness] = useState<number>(3)
 
   // Get all available DNs from the first template (they should be consistent)
   const availableDNs = componentTemplates[0]?.availableDNs || [20, 25, 32, 40, 50, 65, 80, 100, 125, 150]
+
+  // Available wall thicknesses (common standard values)
+  const availableWallThicknesses = [2, 2.5, 3, 4, 5, 6]
 
   // Material names for display
   const materialNames: Record<string, string> = {
@@ -25,7 +29,7 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
   }
 
   const handleConfirm = () => {
-    onConfirm(selectedMaterial, selectedDN)
+    onConfirm(selectedMaterial, selectedDN, selectedWallThickness)
   }
 
   return (
@@ -83,6 +87,27 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Wall Thickness Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Standard-Wandstärke / Rohrdicke (mm)
+            </label>
+            <select
+              value={selectedWallThickness}
+              onChange={(e) => setSelectedWallThickness(Number(e.target.value))}
+              className="w-full bg-white border-2 border-gray-200 text-gray-900 px-4 py-3 rounded-lg focus:outline-none focus:border-blue-600 transition-colors"
+            >
+              {availableWallThicknesses.map((thickness) => (
+                <option key={thickness} value={thickness}>
+                  {thickness} mm
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">
+              Die Wandstärke beeinflusst Gewicht, Stabilität und Preis der Rohre
+            </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

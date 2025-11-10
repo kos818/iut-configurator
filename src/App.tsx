@@ -16,8 +16,8 @@ function App() {
   const projectSettings = useConfiguratorStore((state) => state.projectSettings)
   const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
 
-  const handleProjectSettings = (material: string, dn: DNValue) => {
-    setProjectSettings(material, dn)
+  const handleProjectSettings = (material: string, dn: DNValue, wallThickness: number) => {
+    setProjectSettings(material, dn, wallThickness)
   }
 
   return (

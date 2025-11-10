@@ -67,7 +67,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ dn: newDN as DNValue })
             // Update project settings
-            setProjectSettings(projectSettings.defaultMaterial, newDN)
+            setProjectSettings(projectSettings.defaultMaterial, newDN, projectSettings.defaultWallThickness)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { dn: newDN as any })
@@ -218,7 +218,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ material: newMaterial })
             // Update project settings
-            setProjectSettings(newMaterial, projectSettings.defaultDN)
+            setProjectSettings(newMaterial, projectSettings.defaultDN, projectSettings.defaultWallThickness)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { material: newMaterial })
