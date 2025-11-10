@@ -100,6 +100,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       outletDN: template.defaultOutletDN,
       branchDN: template.defaultBranchDN,
       branchOffset: template.defaultBranchOffset,
+      branchAngle: template.defaultBranchAngle,
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,
@@ -171,7 +172,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         // Regenerate connection points if any geometric properties changed
         if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths ||
             updates.angle !== undefined || updates.flangePosition || updates.branch1 || updates.branch2 ||
-            updates.bendRadius !== undefined || updates.inletDN || updates.outletDN || updates.branchDN || updates.branchOffset !== undefined) {
+            updates.bendRadius !== undefined || updates.inletDN || updates.outletDN || updates.branchDN ||
+            updates.branchOffset !== undefined || updates.branchAngle !== undefined) {
           // Store existing connection info before regenerating
           const existingConnections = new Map(
             c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])

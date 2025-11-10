@@ -936,6 +936,27 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
+        {/* Branch angle for FFFT asymmetric */}
+        {selectedComponent.type === 'ffft_asymmetrical' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Abgang-Winkel (Grad)
+            </label>
+            <input
+              type="number"
+              value={selectedComponent.branchAngle || 90}
+              onChange={(e) => updateComponent(selectedComponent.id, { branchAngle: Number(e.target.value) })}
+              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+              min="0"
+              max="180"
+              step="15"
+            />
+            <p className="text-gray-500 text-xs mt-1">
+              Winkel des Abgangs (90° = senkrecht zur Hauptleitung)
+            </p>
+          </div>
+        )}
+
         {/* Branch configuration for components with branches */}
         {(selectedComponent.type === 'ff_piece_one_branch' ||
           selectedComponent.type === 'ff_piece_two_branches' ||

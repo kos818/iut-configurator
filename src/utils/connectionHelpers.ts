@@ -413,7 +413,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     }
 
     case 'ffft_asymmetrical': {
-      // Asymmetric T-piece with offset branch and different DN values
+      // Asymmetric T-piece with offset branch, angle, and different DN values
       const armLengths = component.teeArmLengths || {
         inlet: component.armLength || 200,
         outlet: component.armLength || 250,
@@ -424,8 +424,11 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       const outletLengthM = armLengths.outlet / 1000
       const branchLengthM = armLengths.branch / 1000
 
-      // Branch offset from center in meters
+      // Branch offset from center in meters (along main axis)
       const branchOffsetM = (component.branchOffset || 0) / 1000
+
+      // Branch angle in radians (default 90° = perpendicular to main axis)
+      const branchAngleRad = ((component.branchAngle || 90) * Math.PI) / 180
 
       // Different DN values for inlet, outlet, and branch
       const inletDN = component.inletDN || dn
@@ -456,14 +459,20 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         connectedTo: null,
       })
 
-      // Branch (top, offset from center)
+      // Branch (at angle, offset from center along main axis)
+      // Position: Start from offset point on main axis, extend perpendicular based on angle
+      // For 90°: goes straight up (0, branchLengthM, 0)
+      // For other angles: rotates in XY plane
+      const branchX = branchOffsetM + (branchLengthM * Math.sin(branchAngleRad))
+      const branchY = branchLengthM * Math.cos(branchAngleRad)
+
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(branchOffsetM, branchLengthM, 0),
-        direction: new Vector3(0, 1, 0),
+        position: new Vector3(branchX, branchY, 0),
+        direction: new Vector3(Math.sin(branchAngleRad), Math.cos(branchAngleRad), 0).normalize(),
         dn: branchDN as DNValue,
         connectedTo: null,
       })

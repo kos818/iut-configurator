@@ -109,6 +109,7 @@ export interface PipeComponent {
 
   // Asymmetric T-piece properties
   branchOffset?: number // Offset from center in mm (for asymmetric FFFT)
+  branchAngle?: number // Angle of branch in degrees (for asymmetric FFFT, default 90°)
 
   price: number // in EUR
   material: MaterialType
@@ -148,6 +149,7 @@ export interface ComponentTemplate {
 
   // Asymmetric T-piece defaults
   defaultBranchOffset?: number // in mm
+  defaultBranchAngle?: number // in degrees
 
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length

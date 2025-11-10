@@ -251,6 +251,7 @@ export const componentTemplates: ComponentTemplate[] = [
     defaultOutletDN: 50, // Outlet DN
     defaultBranchDN: 40, // Branch DN (typically smaller)
     defaultBranchOffset: 50, // Branch offset from center in mm
+    defaultBranchAngle: 90, // Branch angle in degrees (90° = perpendicular)
     basePrice: 78.0,
     pricePerMMWallThickness: 1.5,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],
