@@ -2,6 +2,7 @@ import React from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { DN_TO_MM } from '../../types'
 import { StraightPipe } from './StraightPipe'
+import { PipeWithBranches } from './PipeWithBranches'
 import { ElbowPipe } from './ElbowPipe'
 import { TeePipe } from './TeePipe'
 import { YPipe } from './YPipe'
@@ -37,14 +38,28 @@ export const PipeRenderer: React.FC = () => {
           case 'straight':
           case 'f_piece':
           case 'ff_piece':
-          case 'ff_piece_one_branch':
-          case 'ff_piece_two_branches':
             return (
               <StraightPipe
                 key={component.id}
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
                 length={component.length || 1000}
+                position={position}
+                rotation={rotation}
+                selected={selected}
+                material={component.material}
+              />
+            )
+          case 'ff_piece_one_branch':
+          case 'ff_piece_two_branches':
+            return (
+              <PipeWithBranches
+                key={component.id}
+                id={component.id}
+                diameter={DN_TO_MM[component.dn]}
+                length={component.length || 1000}
+                branch1={component.branch1}
+                branch2={component.branch2}
                 position={position}
                 rotation={rotation}
                 selected={selected}
