@@ -105,6 +105,10 @@ export interface PipeComponent {
   // Reducer properties
   inletDN?: DNValue // For reducers with different inlet/outlet DN
   outletDN?: DNValue // For reducers with different inlet/outlet DN
+  branchDN?: DNValue // For T-pieces with different branch DN
+
+  // Asymmetric T-piece properties
+  branchOffset?: number // Offset from center in mm (for asymmetric FFFT)
 
   price: number // in EUR
   material: MaterialType
@@ -140,6 +144,10 @@ export interface ComponentTemplate {
   // Reducer defaults
   defaultInletDN?: DNValue
   defaultOutletDN?: DNValue
+  defaultBranchDN?: DNValue
+
+  // Asymmetric T-piece defaults
+  defaultBranchOffset?: number // in mm
 
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length

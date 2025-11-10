@@ -240,13 +240,17 @@ export const componentTemplates: ComponentTemplate[] = [
   {
     type: 'ffft_asymmetrical',
     name: 'FFFT-Stück asymmetrisch',
-    description: 'T-Stück mit Flanschen asymmetrisch',
+    description: 'T-Stück mit Flanschen asymmetrisch - Abgang versetzt',
     group: 'branches',
     defaultDN: 50,
     defaultWallThickness: 3,
     availableWallThicknesses: [2, 2.5, 3, 4, 5, 6],
     defaultTeeArmLengths: { inlet: 200, outlet: 250, branch: 200 },
     defaultFlangePosition: 'both',
+    defaultInletDN: 50, // Inlet DN (matches previous component)
+    defaultOutletDN: 50, // Outlet DN
+    defaultBranchDN: 40, // Branch DN (typically smaller)
+    defaultBranchOffset: 50, // Branch offset from center in mm
     basePrice: 78.0,
     pricePerMMWallThickness: 1.5,
     availableDNs: [20, 25, 32, 40, 50, 65, 80, 100, 125, 150] as DNValue[],

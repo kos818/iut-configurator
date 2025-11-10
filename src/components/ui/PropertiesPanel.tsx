@@ -693,7 +693,15 @@ export const PropertiesPanel: React.FC = () => {
       <div className="space-y-4">
         <div>
           <label className="text-gray-300 text-sm">Typ</label>
-          <div className="text-white font-semibold">{template?.name}</div>
+          <div className="text-white font-semibold">
+            {selectedComponent.type === 'ffft_asymmetrical' ? (
+              <>
+                {template?.name} DN{selectedComponent.inletDN || selectedComponent.dn}/{selectedComponent.outletDN || selectedComponent.dn}/{selectedComponent.branchDN || Math.max(20, selectedComponent.dn - 10)}
+              </>
+            ) : (
+              template?.name
+            )}
+          </div>
         </div>
 
         <div>
@@ -851,6 +859,80 @@ export const PropertiesPanel: React.FC = () => {
                 </select>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* FFFT asymmetric: Inlet/Outlet/Branch DN and Branch Offset */}
+        {selectedComponent.type === 'ffft_asymmetrical' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-2">
+              DN-Werte (FFFT asymmetrisch)
+            </label>
+            <div className="space-y-2">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Eingang DN</label>
+                <select
+                  value={selectedComponent.inletDN || selectedComponent.dn}
+                  onChange={(e) => updateComponent(selectedComponent.id, { inletDN: Number(e.target.value) as DNValue })}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Ausgang DN</label>
+                <select
+                  value={selectedComponent.outletDN || selectedComponent.dn}
+                  onChange={(e) => updateComponent(selectedComponent.id, { outletDN: Number(e.target.value) as DNValue })}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Abgang DN</label>
+                <select
+                  value={selectedComponent.branchDN || Math.max(20, selectedComponent.dn - 10)}
+                  onChange={(e) => updateComponent(selectedComponent.id, { branchDN: Number(e.target.value) as DNValue })}
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                >
+                  {template?.availableDNs.map((dn) => (
+                    <option key={dn} value={dn}>
+                      DN{dn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Branch offset for FFFT asymmetric */}
+        {selectedComponent.type === 'ffft_asymmetrical' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Abgang-Versatz (mm)
+            </label>
+            <input
+              type="number"
+              value={selectedComponent.branchOffset || 0}
+              onChange={(e) => updateComponent(selectedComponent.id, { branchOffset: Number(e.target.value) })}
+              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+              min="-200"
+              max="200"
+              step="10"
+            />
+            <p className="text-gray-500 text-xs mt-1">
+              Versatz von der Mittelachse (negativ = links, positiv = rechts)
+            </p>
           </div>
         )}
 
