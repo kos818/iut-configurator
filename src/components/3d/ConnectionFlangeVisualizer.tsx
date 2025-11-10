@@ -9,9 +9,10 @@ interface ConnectionFlangeVisualizerProps {
 }
 
 export const ConnectionFlangeVisualizer: React.FC<ConnectionFlangeVisualizerProps> = ({ component }) => {
-  // Filter for connection points that are connected and use flanged method
+  // Filter for connection points that use flanged method
+  // Show flanges regardless of connection status (flanges are always visible on flanged components)
   const flangedConnectionPoints = component.connectionPoints.filter(
-    (cp: ConnectionPoint) => cp.connectedTo !== null && cp.connectionMethod === 'flanged'
+    (cp: ConnectionPoint) => cp.connectionMethod === 'flanged'
   )
 
   if (flangedConnectionPoints.length === 0) {

@@ -538,9 +538,8 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
     }
 
     case 'ff_piece_one_branch':
-    case 'fffor_one_branch':
-    case 'fffrk_one_branch': {
-      // FF-Stück with one branch
+    case 'fffor_one_branch': {
+      // FF-Stück with one branch (no flanges by default)
       const lengthM = (component.length || 500) / 1000
       const branch = component.branch1 || { angle: 90, position: 0.5, dn: dn, length: 150 }
       const branchLengthM = branch.length / 1000
@@ -589,6 +588,63 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         ).normalize(),
         dn: branch.dn,
         connectedTo: null,
+      })
+      break
+    }
+
+    case 'fffrk_one_branch': {
+      // FFFRK-Stück with one branch - ALL THREE connections have flanges
+      const lengthM = (component.length || 500) / 1000
+      const branch = component.branch1 || { angle: 90, position: 0.5, dn: dn, length: 150 }
+      const branchLengthM = branch.length / 1000
+      const branchAngleRad = (branch.angle * Math.PI) / 180
+      const branchPosM = (branch.position * lengthM) - (lengthM / 2) // Position along main axis
+
+      // Main inlet (with flange)
+      points.push({
+        id: `${component.id}-inlet`,
+        componentId: component.id,
+        type: 'inlet',
+        label: labels[0], // A
+        position: new Vector3(0, -lengthM / 2, 0),
+        direction: new Vector3(0, -1, 0),
+        dn,
+        connectedTo: null,
+        connectionMethod: 'flanged', // FFFRK has flange at inlet
+      })
+
+      // Main outlet (with flange)
+      points.push({
+        id: `${component.id}-outlet`,
+        componentId: component.id,
+        type: 'outlet',
+        label: labels[1], // B
+        position: new Vector3(0, lengthM / 2, 0),
+        direction: new Vector3(0, 1, 0),
+        dn,
+        connectedTo: null,
+        connectionMethod: 'flanged', // FFFRK has flange at outlet
+      })
+
+      // Branch (with flange - conical reduction)
+      points.push({
+        id: `${component.id}-branch`,
+        componentId: component.id,
+        type: 'branch',
+        label: labels[2], // C
+        position: new Vector3(
+          branchLengthM * Math.sin(branchAngleRad),
+          branchPosM,
+          branchLengthM * Math.cos(branchAngleRad)
+        ),
+        direction: new Vector3(
+          Math.sin(branchAngleRad),
+          0,
+          Math.cos(branchAngleRad)
+        ).normalize(),
+        dn: branch.dn,
+        connectedTo: null,
+        connectionMethod: 'flanged', // FFFRK has flange at branch
       })
       break
     }
