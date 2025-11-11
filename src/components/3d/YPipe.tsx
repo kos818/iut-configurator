@@ -62,7 +62,7 @@ export const YPipe: React.FC<YPipeProps> = ({
         position={[0, inletY, 0]}
         rotation={[0, 0, 0]}
       >
-        <cylinderGeometry args={[outerRadius, outerRadius, armLengthM, 16]} />
+        <cylinderGeometry key={`inlet-${armLength}`} args={[outerRadius, outerRadius, armLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
@@ -71,7 +71,7 @@ export const YPipe: React.FC<YPipeProps> = ({
         position={[leftOutletX, leftOutletY, 0]}
         rotation={[0, 0, leftAngle]}
       >
-        <cylinderGeometry args={[outerRadius, outerRadius, armLengthM, 16]} />
+        <cylinderGeometry key={`left-${armLength}`} args={[outerRadius, outerRadius, armLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 
@@ -79,7 +79,7 @@ export const YPipe: React.FC<YPipeProps> = ({
       <mesh position={[rightOutletX, rightOutletY, 0]}
         rotation={[0, 0, -rightAngle]}
       >
-        <cylinderGeometry args={[outerRadius, outerRadius, armLengthM, 16]} />
+        <cylinderGeometry key={`right-${armLength}`} args={[outerRadius, outerRadius, armLengthM, 16]} />
         <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
       </mesh>
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
-import { Trash2, Circle, Plus } from 'lucide-react'
+import { Trash2, Circle, Plus, Search } from 'lucide-react'
 
 export const ComponentList: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -11,6 +11,7 @@ export const ComponentList: React.FC = () => {
 
   const [hoveredComponent, setHoveredComponent] = useState<string | null>(null)
   const [showQuickAdd, setShowQuickAdd] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const handleQuickAdd = (componentId: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -22,6 +23,19 @@ export const ComponentList: React.FC = () => {
     setQuickAddConnectionPoint(connectionPointId)
     setShowQuickAdd(null)
   }
+
+  // Filter components based on search query
+  const filteredComponents = components.filter((component) => {
+    if (!searchQuery) return true
+
+    const query = searchQuery.toLowerCase()
+    return (
+      component.type.toLowerCase().includes(query) ||
+      component.material.toLowerCase().includes(query) ||
+      `dn${component.dn}`.includes(query) ||
+      component.dn.toString().includes(query)
+    )
+  })
 
   if (components.length === 0) {
     return (
@@ -35,8 +49,28 @@ export const ComponentList: React.FC = () => {
   return (
     <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
       <h2 className="text-xl font-bold text-white mb-2">Platzierte Komponenten</h2>
+
+      {/* Search bar */}
+      <div className="mb-3">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Komponente suchen..."
+            className="w-full pl-10 pr-3 py-2 text-sm bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2 max-h-64 overflow-y-auto">
-        {components.map((component, index) => {
+        {filteredComponents.length === 0 && searchQuery ? (
+          <div className="text-gray-400 text-sm italic text-center py-4">
+            Keine Komponente gefunden
+          </div>
+        ) : (
+          filteredComponents.map((component, index) => {
           const isSelected = component.id === selectedComponent
           const isHovered = hoveredComponent === component.id
           const connectedCount = component.connectionPoints.filter(cp => cp.connectedTo !== null).length
@@ -148,7 +182,8 @@ export const ComponentList: React.FC = () => {
               )}
             </div>
           )
-        })}
+        })
+        )}
       </div>
     </div>
   )
