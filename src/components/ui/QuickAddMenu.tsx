@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
-import { ChevronRight, ChevronLeft, Search } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Search, AlertCircle } from 'lucide-react'
 import { componentTemplates, componentGroupNames, ComponentGroup } from '../../data/componentTemplates'
 import { ComponentTemplate } from '../../types'
 
 interface QuickAddMenuProps {
   onSelect: (template: ComponentTemplate) => void
   onClose: () => void
+  validateTemplate?: (template: ComponentTemplate) => { isValid: boolean; reason?: string } | null
 }
 
 export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
   onSelect,
   onClose,
+  validateTemplate,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState<ComponentGroup | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,6 +44,55 @@ export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
         )
       })
     : []
+
+  // Helper function to render a template button with validation
+  const renderTemplateButton = (template: ComponentTemplate, index: number, showGroup: boolean = false) => {
+    const validation = validateTemplate ? validateTemplate(template) : null
+    const isDisabled = validation !== null && !validation.isValid
+
+    return (
+      <button
+        key={index}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (!isDisabled) {
+            onSelect(template)
+          }
+        }}
+        disabled={isDisabled}
+        className={`
+          w-full text-left px-2 py-1.5 transition-colors border-b border-gray-200 last:border-b-0
+          ${isDisabled
+            ? 'bg-gray-100 cursor-not-allowed opacity-60'
+            : 'hover:bg-blue-50 cursor-pointer'
+          }
+        `}
+      >
+        <div className={`font-semibold text-xs leading-tight ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
+          {template.name}
+        </div>
+        <div className={`leading-tight ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: '10px' }}>
+          {template.description}
+        </div>
+        {showGroup && (
+          <div className={`text-xs leading-tight ${isDisabled ? 'text-gray-400' : 'text-gray-500'}`} style={{ fontSize: '10px' }}>
+            {componentGroupNames[template.group as ComponentGroup]}
+          </div>
+        )}
+        {isDisabled && validation?.reason && (
+          <div className="flex items-center gap-1 mt-1 text-red-600" style={{ fontSize: '10px' }}>
+            <AlertCircle size={10} className="flex-shrink-0" />
+            <span className="leading-tight">{validation.reason}</span>
+          </div>
+        )}
+        {!isDisabled && (
+          <div className="text-green-600 font-semibold leading-tight" style={{ fontSize: '10px' }}>
+            {template.basePrice.toFixed(2)} €
+          </div>
+        )}
+      </button>
+    )
+  }
 
   return (
     <div
@@ -133,29 +184,7 @@ export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
         {!selectedGroup && searchQuery && (
           <div>
             {searchResults.length > 0 ? (
-              searchResults.map((template, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSelect(template)
-                  }}
-                  className="w-full text-left px-2 py-1.5 hover:bg-blue-50 transition-colors border-b border-gray-200 last:border-b-0"
-                >
-                  <div className="font-semibold text-gray-900 text-xs leading-tight">
-                    {template.name}
-                  </div>
-                  <div className="text-gray-600 leading-tight" style={{ fontSize: '10px' }}>
-                    {template.description}
-                  </div>
-                  <div className="text-xs text-gray-500 leading-tight" style={{ fontSize: '10px' }}>
-                    {componentGroupNames[template.group as ComponentGroup]}
-                  </div>
-                  <div className="text-green-600 font-semibold leading-tight" style={{ fontSize: '10px' }}>
-                    {template.basePrice.toFixed(2)} €
-                  </div>
-                </button>
-              ))
+              searchResults.map((template, index) => renderTemplateButton(template, index, true))
             ) : (
               <div className="px-2 py-4 text-center text-gray-500 text-xs">
                 Keine Komponente gefunden
@@ -168,26 +197,7 @@ export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
         {selectedGroup && (
           <div>
             {filteredTemplates.length > 0 ? (
-              filteredTemplates.map((template, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSelect(template)
-                  }}
-                  className="w-full text-left px-2 py-1.5 hover:bg-blue-50 transition-colors border-b border-gray-200 last:border-b-0"
-                >
-                  <div className="font-semibold text-gray-900 text-xs leading-tight">
-                    {template.name}
-                  </div>
-                  <div className="text-gray-600 leading-tight" style={{ fontSize: '10px' }}>
-                    {template.description}
-                  </div>
-                  <div className="text-green-600 font-semibold leading-tight" style={{ fontSize: '10px' }}>
-                    {template.basePrice.toFixed(2)} €
-                  </div>
-                </button>
-              ))
+              filteredTemplates.map((template, index) => renderTemplateButton(template, index, false))
             ) : (
               <div className="px-2 py-4 text-center text-gray-500 text-xs">
                 Keine passende Komponente gefunden

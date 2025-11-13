@@ -37,7 +37,7 @@ interface ConfiguratorState {
   }
 
   // Actions
-  addComponent: (template: ComponentTemplate, position?: Vector3) => void
+  addComponent: (template: ComponentTemplate, position?: Vector3) => string
   removeComponent: (id: string) => void
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
   updateAllComponents: (updates: Partial<PipeComponent>) => void
@@ -128,6 +128,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     }))
 
     get().calculateTotalPrice()
+    return newComponent.id
   },
 
   removeComponent: (id: string) => {

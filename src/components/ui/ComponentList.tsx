@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { Trash2, Circle, Plus, Search } from 'lucide-react'
+import { QuickAddMenu } from './QuickAddMenu'
+import { ComponentTemplate, ConnectionPoint } from '../../types'
 
 export const ComponentList: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -10,18 +12,48 @@ export const ComponentList: React.FC = () => {
   const setQuickAddConnectionPoint = useConfiguratorStore((state) => state.setQuickAddConnectionPoint)
 
   const [hoveredComponent, setHoveredComponent] = useState<string | null>(null)
-  const [showQuickAdd, setShowQuickAdd] = useState<string | null>(null)
+  const [selectedConnectionPointForMenu, setSelectedConnectionPointForMenu] = useState<ConnectionPoint | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleQuickAdd = (componentId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setShowQuickAdd(componentId)
+    setSelectedConnectionPointForMenu(null) // Reset the connection point when opening menu
+    selectComponent(componentId)
   }
 
-  const handleConnectionPointClick = (connectionPointId: string, e: React.MouseEvent) => {
+  const handleConnectionPointClick = (connectionPoint: ConnectionPoint, e: React.MouseEvent) => {
     e.stopPropagation()
-    setQuickAddConnectionPoint(connectionPointId)
-    setShowQuickAdd(null)
+    setSelectedConnectionPointForMenu(connectionPoint)
+    setQuickAddConnectionPoint(connectionPoint.id)
+  }
+
+  const validateTemplate = (template: ComponentTemplate) => {
+    if (!selectedConnectionPointForMenu) {
+      return { isValid: false, reason: 'Kein Verbindungspunkt ausgewählt' }
+    }
+
+    // Check DN compatibility
+    if (template.defaultDN !== selectedConnectionPointForMenu.dn) {
+      return {
+        isValid: false,
+        reason: `Inkompatibel: DN${template.defaultDN} passt nicht zu DN${selectedConnectionPointForMenu.dn}`
+      }
+    }
+
+    // Check connection method compatibility
+    // If connection point is flanged, the template should support flanges
+    const templateConnectionMethod = template.type.includes('ff') || template.type.includes('flange')
+      ? 'flanged'
+      : 'welded'
+
+    if (selectedConnectionPointForMenu.connectionMethod === 'flanged' && templateConnectionMethod === 'welded') {
+      return {
+        isValid: false,
+        reason: 'Geflanschte Verbindung erfordert Flanschkomponente'
+      }
+    }
+
+    return { isValid: true }
   }
 
   // Filter components based on search query
@@ -149,8 +181,8 @@ export const ComponentList: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Add Menu */}
-              {showQuickAdd === component.id && (
+              {/* Quick Add Menu - Connection Point Selection or Component Selection */}
+              {isSelected && !selectedConnectionPointForMenu && (
                 <div
                   className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-600 rounded-lg shadow-xl z-50 p-2"
                   onClick={(e) => e.stopPropagation()}
@@ -163,21 +195,44 @@ export const ComponentList: React.FC = () => {
                     .map((cp) => (
                       <button
                         key={cp.id}
-                        onClick={(e) => handleConnectionPointClick(cp.id, e)}
+                        onClick={(e) => handleConnectionPointClick(cp, e)}
                         className="w-full text-left px-2 py-1.5 text-sm text-gray-300 hover:bg-gray-700 rounded transition-colors"
                       >
                         📍 {cp.label} ({cp.type}) - DN{cp.dn}
+                        {cp.connectionMethod === 'flanged' && ' • Flansch'}
                       </button>
                     ))}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      setShowQuickAdd(null)
+                      selectComponent(null)
                     }}
                     className="w-full text-center px-2 py-1 text-xs text-gray-500 hover:text-gray-300 mt-1"
                   >
                     Abbrechen
                   </button>
+                </div>
+              )}
+
+              {/* QuickAddMenu - Component Selection with Validation */}
+              {isSelected && selectedConnectionPointForMenu && (
+                <div
+                  className="absolute top-full left-0 mt-1 z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <QuickAddMenu
+                    onSelect={(_template) => {
+                      // Component will be added via ConnectionPointOverlay logic
+                      setSelectedConnectionPointForMenu(null)
+                      selectComponent(null)
+                    }}
+                    onClose={() => {
+                      setSelectedConnectionPointForMenu(null)
+                      setQuickAddConnectionPoint(null)
+                      selectComponent(null)
+                    }}
+                    validateTemplate={validateTemplate}
+                  />
                 </div>
               )}
             </div>
