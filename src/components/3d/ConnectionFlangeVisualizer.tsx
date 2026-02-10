@@ -1,16 +1,14 @@
-import React from 'react'
-import { Vector3, Euler, Quaternion } from 'three'
+import React, { useMemo } from 'react'
+import { Vector3, Euler, Quaternion, CylinderGeometry } from 'three'
 import { PipeComponent, ConnectionPoint } from '../../types'
 import { getWorldPosition } from '../../utils/connectionHelpers'
-import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import { CADMesh } from '../cad/CADMesh'
 
 interface ConnectionFlangeVisualizerProps {
   component: PipeComponent
 }
 
 export const ConnectionFlangeVisualizer: React.FC<ConnectionFlangeVisualizerProps> = ({ component }) => {
-  // Filter for connection points that use flanged method
-  // Show flanges regardless of connection status (flanges are always visible on flanged components)
   const flangedConnectionPoints = component.connectionPoints.filter(
     (cp: ConnectionPoint) => cp.connectionMethod === 'flanged'
   )
@@ -21,58 +19,54 @@ export const ConnectionFlangeVisualizer: React.FC<ConnectionFlangeVisualizerProp
 
   return (
     <group>
-      {flangedConnectionPoints.map((cp: ConnectionPoint) => {
-        // Get world position
-        const worldPos = getWorldPosition(component, cp)
+      {flangedConnectionPoints.map((cp: ConnectionPoint) => (
+        <FlangeAtConnectionPoint key={cp.id} component={component} cp={cp} />
+      ))}
+    </group>
+  )
+}
 
-        // Calculate rotation to align flange with connection point direction
-        // Connection points point outward, so we need to align the flange disk perpendicular to that
-        const up = new Vector3(0, 1, 0)
-        const direction = cp.direction.clone()
-        direction.applyEuler(new Euler(component.rotation.x, component.rotation.y, component.rotation.z))
+const FlangeAtConnectionPoint: React.FC<{
+  component: PipeComponent
+  cp: ConnectionPoint
+}> = ({ component, cp }) => {
+  const worldPos = getWorldPosition(component, cp)
 
-        // Calculate rotation quaternion to align up vector with direction
-        const quaternion = new Quaternion()
-        quaternion.setFromUnitVectors(up, direction)
-        const euler = new Euler()
-        euler.setFromQuaternion(quaternion)
+  const up = new Vector3(0, 1, 0)
+  const direction = cp.direction.clone()
+  direction.applyEuler(new Euler(component.rotation.x, component.rotation.y, component.rotation.z))
 
-        // Flange dimensions based on DN
-        const pipeRadius = cp.dn / 2000 // Convert DN to meters radius (rough approximation)
-        const flangeRadius = pipeRadius * 2
-        const flangeThickness = pipeRadius * 0.4
+  const quaternion = new Quaternion()
+  quaternion.setFromUnitVectors(up, direction)
+  const euler = new Euler()
+  euler.setFromQuaternion(quaternion)
 
-        // Position flange at the pipe end (connection point)
-        // The flange extends outward from the CP
-        // The cylinder is centered at CP + thickness/2, so it extends from CP to CP + thickness
-        const flangeOffset = direction.clone().multiplyScalar(flangeThickness / 2)
-        const flangePos = worldPos.clone().add(flangeOffset)
+  const pipeRadius = cp.dn / 2000
+  const flangeRadius = pipeRadius * 2
+  const flangeThickness = pipeRadius * 0.4
 
-        const color = getMaterialColor(component.material, false)
-        const metalness = getMaterialMetalness(component.material)
-        const roughness = getMaterialRoughness(component.material)
+  const flangeOffset = direction.clone().multiplyScalar(flangeThickness / 2)
+  const flangePos = worldPos.clone().add(flangeOffset)
 
+  const diskGeom = useMemo(
+    () => new CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 24),
+    [flangeRadius, flangeThickness]
+  )
+
+  return (
+    <group position={[flangePos.x, flangePos.y, flangePos.z]} rotation={[euler.x, euler.y, euler.z]}>
+      <CADMesh id={component.id} geometry={diskGeom} />
+
+      {/* Bolt holes - dark accent */}
+      {[...Array(6)].map((_, i) => {
+        const angle = (i / 6) * Math.PI * 2
+        const x = Math.cos(angle) * flangeRadius * 0.75
+        const z = Math.sin(angle) * flangeRadius * 0.75
         return (
-          <group key={cp.id} position={[flangePos.x, flangePos.y, flangePos.z]} rotation={[euler.x, euler.y, euler.z]}>
-            {/* Flange disk */}
-            <mesh>
-              <cylinderGeometry args={[flangeRadius, flangeRadius, flangeThickness, 24]} />
-              <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-            </mesh>
-
-            {/* Bolt holes (6 around the flange) */}
-            {[...Array(6)].map((_, i) => {
-              const angle = (i / 6) * Math.PI * 2
-              const x = Math.cos(angle) * flangeRadius * 0.75
-              const z = Math.sin(angle) * flangeRadius * 0.75
-              return (
-                <mesh key={i} position={[x, 0, z]}>
-                  <cylinderGeometry args={[pipeRadius * 0.2, pipeRadius * 0.2, flangeThickness, 8]} />
-                  <meshStandardMaterial color="#212121" />
-                </mesh>
-              )
-            })}
-          </group>
+          <mesh key={i} position={[x, 0, z]}>
+            <cylinderGeometry args={[pipeRadius * 0.2, pipeRadius * 0.2, flangeThickness, 8]} />
+            <meshStandardMaterial color="#212121" />
+          </mesh>
         )
       })}
     </group>

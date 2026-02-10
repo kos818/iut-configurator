@@ -1,6 +1,6 @@
-import React, { useRef } from 'react'
-import { Mesh } from 'three'
-import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import React, { useMemo } from 'react'
+import { CylinderGeometry, SphereGeometry } from 'three'
+import { CADMesh } from '../cad/CADMesh'
 import { useDraggable } from '../../hooks/useDraggable'
 
 interface CapProps {
@@ -17,38 +17,30 @@ export const Cap: React.FC<CapProps> = ({
   diameter,
   position,
   rotation,
-  selected,
-  material,
 }) => {
-  const meshRef = useRef<Mesh>(null)
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const capHeight = outerRadius * 1.5
 
-  const color = getMaterialColor(material, selected)
-  const metalness = getMaterialMetalness(material)
-  const roughness = getMaterialRoughness(material)
+  const baseGeom = useMemo(
+    () => new CylinderGeometry(outerRadius, outerRadius, capHeight / 2, 16),
+    [outerRadius, capHeight]
+  )
+  const domeGeom = useMemo(
+    () => new SphereGeometry(outerRadius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    [outerRadius]
+  )
+  const ringGeom = useMemo(
+    () => new CylinderGeometry(outerRadius * 1.3, outerRadius * 1.3, outerRadius * 0.2, 16),
+    [outerRadius]
+  )
 
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
-      {/* Cylindrical base */}
-      <mesh ref={meshRef} position={[0, -capHeight / 4, 0]}>
-        <cylinderGeometry args={[outerRadius, outerRadius, capHeight / 2, 16]} />
-        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-      </mesh>
-
-      {/* Hemispherical dome on top */}
-      <mesh position={[0, capHeight / 4, 0]}>
-        <sphereGeometry args={[outerRadius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-      </mesh>
-
-      {/* Flange ring at base */}
-      <mesh position={[0, -capHeight / 2, 0]}>
-        <cylinderGeometry args={[outerRadius * 1.3, outerRadius * 1.3, outerRadius * 0.2, 16]} />
-        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-      </mesh>
+      <CADMesh id={id} geometry={baseGeom} position={[0, -capHeight / 4, 0]} />
+      <CADMesh id={id} geometry={domeGeom} position={[0, capHeight / 4, 0]} />
+      <CADMesh id={id} geometry={ringGeom} position={[0, -capHeight / 2, 0]} />
     </group>
   )
 }

@@ -6,12 +6,15 @@ import { PriceDisplay } from './components/ui/PriceDisplay'
 import { Toolbar } from './components/ui/Toolbar'
 import { ValidationPanel } from './components/ui/ValidationPanel'
 import { ProjectSettingsDialog } from './components/ui/ProjectSettingsDialog'
+import { StepUploader } from './components/ui/StepUploader'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useCADStoreSync } from './hooks/useCADStoreSync'
 import { useConfiguratorStore } from './store/useConfiguratorStore'
 import { DNValue } from './types'
 
 function App() {
   useKeyboardShortcuts()
+  useCADStoreSync()
 
   const projectSettings = useConfiguratorStore((state) => state.projectSettings)
   const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
@@ -37,6 +40,13 @@ function App() {
           <ComponentSelector />
           <ComponentList />
           <PropertiesPanel />
+          <div className="bg-gray-800 rounded-lg shadow-lg">
+            <StepUploader
+              onModelConverted={(result) => {
+                console.log('STEP model converted:', result.url)
+              }}
+            />
+          </div>
         </aside>
 
         {/* Center - 3D View */}

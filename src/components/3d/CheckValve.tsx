@@ -1,6 +1,6 @@
-import React, { useRef } from 'react'
-import { Mesh } from 'three'
-import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import React, { useMemo } from 'react'
+import { CylinderGeometry } from 'three'
+import { CADMesh } from '../cad/CADMesh'
 import { useDraggable } from '../../hooks/useDraggable'
 
 interface CheckValveProps {
@@ -18,28 +18,23 @@ export const CheckValve: React.FC<CheckValveProps> = ({
   position,
   rotation,
   selected,
-  material,
 }) => {
-  const meshRef = useRef<Mesh>(null)
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const bodyLength = outerRadius * 3
 
-  const color = getMaterialColor(material, selected)
-  const metalness = getMaterialMetalness(material)
-  const roughness = getMaterialRoughness(material)
+  const bodyGeom = useMemo(
+    () => new CylinderGeometry(outerRadius * 1.5, outerRadius * 1.5, bodyLength, 16),
+    [outerRadius, bodyLength]
+  )
 
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
-      {/* Valve body */}
-      <mesh ref={meshRef}>
-        <cylinderGeometry args={[outerRadius * 1.5, outerRadius * 1.5, bodyLength, 16]} />
-        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-      </mesh>
+      <CADMesh id={id} geometry={bodyGeom} />
 
-      {/* Flow direction indicator (cone pointing upward) */}
-      <mesh position={[0, bodyLength / 2 + outerRadius * 0.8, 0]} rotation={[0, 0, 0]}>
+      {/* Flow direction indicator - accent material */}
+      <mesh position={[0, bodyLength / 2 + outerRadius * 0.8, 0]}>
         <coneGeometry args={[outerRadius * 0.8, outerRadius * 1.2, 8]} />
         <meshStandardMaterial
           color={selected ? '#4CAF50' : '#FFC107'}
@@ -48,7 +43,7 @@ export const CheckValve: React.FC<CheckValveProps> = ({
         />
       </mesh>
 
-      {/* Base ring */}
+      {/* Base ring - accent material */}
       <mesh position={[0, -bodyLength / 2 - outerRadius * 0.3, 0]}>
         <cylinderGeometry args={[outerRadius * 1.8, outerRadius * 1.8, outerRadius * 0.4, 16]} />
         <meshStandardMaterial

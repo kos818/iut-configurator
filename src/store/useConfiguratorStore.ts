@@ -1,8 +1,66 @@
 import { create } from 'zustand'
-import { Vector3 } from 'three'
+import { Vector3, Euler } from 'three'
 import { PipeComponent, ComponentTemplate, MaterialType } from '../types'
 import { materialMultipliers, componentTemplates } from '../data/componentTemplates'
 import { generateConnectionPoints } from '../utils/connectionHelpers'
+
+// Reposition connected components after a component's geometry changed.
+// Uses BFS to cascade position updates through the connection graph.
+const repositionConnectedComponents = (
+  components: PipeComponent[],
+  changedComponentId: string
+): PipeComponent[] => {
+  const componentMap = new Map(components.map(c => [c.id, { ...c, position: c.position.clone() }]))
+  const visited = new Set<string>()
+  const queue: string[] = [changedComponentId]
+  visited.add(changedComponentId)
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!
+    const current = componentMap.get(currentId)
+    if (!current) continue
+
+    for (const cp of current.connectionPoints) {
+      if (!cp.connectedTo) continue
+
+      // Find the connected component and its matching CP
+      let connectedComp: PipeComponent | undefined
+      let connectedCP = undefined
+      for (const comp of componentMap.values()) {
+        const matchCP = comp.connectionPoints.find(p => p.id === cp.connectedTo)
+        if (matchCP) {
+          connectedComp = comp
+          connectedCP = matchCP
+          break
+        }
+      }
+
+      if (!connectedComp || !connectedCP || visited.has(connectedComp.id)) continue
+
+      // Calculate where current component's CP is in world space
+      const currentCPWorld = cp.position.clone()
+      currentCPWorld.applyEuler(new Euler(current.rotation.x, current.rotation.y, current.rotation.z))
+      currentCPWorld.add(current.position)
+
+      // Calculate where connected component's CP is in world space
+      const connectedCPWorld = connectedCP.position.clone()
+      connectedCPWorld.applyEuler(new Euler(connectedComp.rotation.x, connectedComp.rotation.y, connectedComp.rotation.z))
+      connectedCPWorld.add(connectedComp.position)
+
+      // Move connected component so its CP aligns with current component's CP
+      const delta = currentCPWorld.clone().sub(connectedCPWorld)
+      if (delta.lengthSq() > 1e-10) {
+        connectedComp.position = connectedComp.position.clone().add(delta)
+        componentMap.set(connectedComp.id, connectedComp)
+      }
+
+      visited.add(connectedComp.id)
+      queue.push(connectedComp.id)
+    }
+  }
+
+  return components.map(c => componentMap.get(c.id) || c)
+}
 
 // Helper function to calculate component price
 const calculateComponentPrice = (component: Partial<PipeComponent>, template?: ComponentTemplate): number => {
@@ -166,7 +224,12 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   },
 
   updateComponent: (id: string, updates: Partial<PipeComponent>) => {
-    const newComponents = get().components.map((c) => {
+    const geometryChanged = updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths ||
+        updates.angle !== undefined || updates.flangePosition || updates.branch1 || updates.branch2 ||
+        updates.bendRadius !== undefined || updates.inletDN || updates.outletDN || updates.branchDN ||
+        updates.branchOffset !== undefined || updates.branchAngle !== undefined
+
+    let newComponents = get().components.map((c) => {
       if (c.id === id) {
         const updated = { ...c, ...updates }
         // Recalculate price if material, dn, length, or wallThickness changed
@@ -174,10 +237,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
           updated.price = calculateComponentPrice(updated)
         }
         // Regenerate connection points if any geometric properties changed
-        if (updates.dn || updates.length || updates.teeArmLengths || updates.elbowArmLengths ||
-            updates.angle !== undefined || updates.flangePosition || updates.branch1 || updates.branch2 ||
-            updates.bendRadius !== undefined || updates.inletDN || updates.outletDN || updates.branchDN ||
-            updates.branchOffset !== undefined || updates.branchAngle !== undefined) {
+        if (geometryChanged) {
           // Store existing connection info before regenerating
           const existingConnections = new Map(
             c.connectionPoints.map(cp => [cp.type, { connectedTo: cp.connectedTo, connectionMethod: cp.connectionMethod }])
@@ -197,6 +257,11 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       }
       return c
     })
+
+    // Reposition connected components if geometry changed
+    if (geometryChanged) {
+      newComponents = repositionConnectedComponents(newComponents, id)
+    }
 
     set((state) => ({
       components: newComponents,

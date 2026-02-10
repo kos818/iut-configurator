@@ -118,51 +118,32 @@ export const ComponentSelector: React.FC = () => {
         rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
 
         // Calculate the actual component position: target position minus the rotated CP offset
-        let actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
-
-        // If using flanged connection, add extra spacing for the flanges
-        if (connectionMethod === 'flanged') {
-          // Calculate flange thickness based on DN
-          const pipeRadius = targetCP.dn / 2000 // Convert DN to meters radius
-          const flangeThickness = pipeRadius * 0.4
-
-          // Add spacing for both flanges (2x thickness)
-          const flangeSpacing = flangeThickness * 2
-
-          // Get the direction from target CP to new component (opposite of target CP direction)
-          const targetDirection = getWorldDirection(targetComponent, targetCP)
-
-          // Move the component away by the flange spacing
-          const spacingOffset = targetDirection.clone().multiplyScalar(flangeSpacing)
-          actualPosition.add(spacingOffset)
-        }
+        const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
 
         // Add component at corrected position with calculated rotation
-        addComponent(templateWithDN, actualPosition)
+        const newComponentId = addComponent(templateWithDN, actualPosition)
 
-        // Wait for next tick to get the new component and apply rotation + connection
-        setTimeout(() => {
-          const allComponents = useConfiguratorStore.getState().components
-          const newComponent = allComponents[allComponents.length - 1]
+        // Apply rotation and connections immediately (not in setTimeout to avoid timing issues)
+        const allComponents = useConfiguratorStore.getState().components
+        const newComponent = allComponents.find(c => c.id === newComponentId)
 
-          if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
-            const newCP = newComponent.connectionPoints[newComponentCPIndex] // Use selected connection point
+        if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
+          const newCP = newComponent.connectionPoints[newComponentCPIndex] // Use selected connection point
 
-            // Apply rotation and mark both connection points as connected
-            updateComponent(newComponent.id, {
-              rotation,
-              connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
-                cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
-              )
-            })
+          // Apply rotation and mark both connection points as connected
+          updateComponent(newComponent.id, {
+            rotation,
+            connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
+              cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
+            )
+          })
 
-            updateComponent(targetComponent.id, {
-              connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
-                cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
-              )
-            })
-          }
-        }, 50)
+          updateComponent(targetComponent.id, {
+            connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
+              cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
+            )
+          })
+        }
       }
     } else {
       // Add component freely with offset

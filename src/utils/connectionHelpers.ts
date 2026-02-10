@@ -1,4 +1,4 @@
-import { Vector3, Euler } from 'three'
+import { Vector3, Euler, Quaternion } from 'three'
 import { PipeComponent, ConnectionPoint, Connection, DNValue, SNAP_DISTANCE, DN_TO_MM } from '../types'
 import { componentTemplates } from '../data/componentTemplates'
 
@@ -325,40 +325,49 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
 
     case 'union_straight':
     case 'union_angled': {
-      // Union piece (Vereinigungsstück) - two inlets, one outlet
-      const armLengthM = (component.armLength || 200) / 1000
-      const angle = component.type === 'union_angled' ? ((component.angle || 45) * Math.PI / 180) : 0
+      // Union piece (Vereinigungsstück) - two inlets merge into one outlet
+      // Rendered as TeePipe: inlet along -X, outlet along +X, branch along +Y
+      // So connection points must match: left (-X), right (+X), top (+Y)
+      const armLengths = component.teeArmLengths || {
+        inlet: component.armLength || 200,
+        outlet: component.armLength || 200,
+        branch: component.armLength || 200
+      }
 
-      // Inlet 1 (top left)
+      const inletLengthM = armLengths.inlet / 1000
+      const outletLengthM = armLengths.outlet / 1000
+      const branchLengthM = armLengths.branch / 1000
+
+      // Inlet 1 (left, Arm A)
       points.push({
         id: `${component.id}-inlet`,
         componentId: component.id,
         type: 'inlet',
         label: labels[0], // A
-        position: new Vector3(-armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
-        direction: new Vector3(Math.sin(angle), -Math.cos(angle), 0).normalize(),
+        position: new Vector3(-inletLengthM, 0, 0),
+        direction: new Vector3(-1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Inlet 2 (top right)
+      // Inlet 2 (right, Arm B)
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
         type: 'outlet',
         label: labels[1], // B
-        position: new Vector3(armLengthM * Math.sin(angle), armLengthM * Math.cos(angle), 0),
-        direction: new Vector3(-Math.sin(angle), -Math.cos(angle), 0).normalize(),
+        position: new Vector3(outletLengthM, 0, 0),
+        direction: new Vector3(1, 0, 0),
         dn,
         connectedTo: null,
       })
-      // Outlet (bottom)
+      // Outlet (top, Arm C)
       points.push({
         id: `${component.id}-branch`,
         componentId: component.id,
         type: 'branch',
         label: labels[2], // C
-        position: new Vector3(0, -armLengthM, 0),
-        direction: new Vector3(0, -1, 0),
+        position: new Vector3(0, branchLengthM, 0),
+        direction: new Vector3(0, 1, 0),
         dn,
         connectedTo: null,
       })
@@ -460,11 +469,10 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
       })
 
       // Branch (at angle, offset from center along main axis)
-      // Position: Start from offset point on main axis, extend perpendicular based on angle
-      // For 90°: goes straight up (0, branchLengthM, 0)
-      // For other angles: rotates in XY plane
-      const branchX = branchOffsetM + (branchLengthM * Math.sin(branchAngleRad))
-      const branchY = branchLengthM * Math.cos(branchAngleRad)
+      // branchAngle is measured from main axis: 90° = perpendicular (+Y), 0° = parallel (+X)
+      // For 90°: goes straight up (0, branchLengthM, 0) matching TeePipe renderer
+      const branchX = branchOffsetM + (branchLengthM * Math.cos(branchAngleRad))
+      const branchY = branchLengthM * Math.sin(branchAngleRad)
 
       points.push({
         id: `${component.id}-branch`,
@@ -472,7 +480,7 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         type: 'branch',
         label: labels[2], // C
         position: new Vector3(branchX, branchY, 0),
-        direction: new Vector3(Math.sin(branchAngleRad), Math.cos(branchAngleRad), 0).normalize(),
+        direction: new Vector3(Math.cos(branchAngleRad), Math.sin(branchAngleRad), 0).normalize(),
         dn: branchDN as DNValue,
         connectedTo: null,
       })
@@ -751,7 +759,8 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         connectedTo: null,
       })
 
-      // Outlet (rotated by angle)
+      // Outlet (rotated by angle) - same convention as elbow: angle measured from inlet direction
+      // For angle θ: inlet direction (0,-1) rotated by θ gives (sin(θ), -cos(θ))
       points.push({
         id: `${component.id}-outlet`,
         componentId: component.id,
@@ -759,12 +768,12 @@ export const generateConnectionPoints = (component: PipeComponent): ConnectionPo
         label: labels[1], // B
         position: new Vector3(
           outletLengthM * Math.sin(angleRad),
-          outletLengthM * Math.cos(angleRad),
+          outletLengthM * -Math.cos(angleRad),
           0
         ),
         direction: new Vector3(
           Math.sin(angleRad),
-          Math.cos(angleRad),
+          -Math.cos(angleRad),
           0
         ).normalize(),
         dn: outletDN,
@@ -893,23 +902,33 @@ export const updateComponentValidation = (
 
 // Calculate snap position and rotation for automatic alignment
 export const calculateSnapTransform = (
-  movingComponent: PipeComponent,
+  _movingComponent: PipeComponent,
   movingCP: ConnectionPoint,
   targetComponent: PipeComponent,
   targetCP: ConnectionPoint
 ): { position: Vector3; rotation: Vector3 } => {
-  // Get world position of target connection point
+  // Get world position and direction of target connection point
   const targetWorldPos = getWorldPosition(targetComponent, targetCP)
+  const targetWorldDir = getWorldDirection(targetComponent, targetCP)
 
-  // Calculate offset from moving component's position to its connection point
-  const cpOffset = movingCP.position.clone()
+  // Compute alignment rotation:
+  // The moving CP's outward direction must become anti-parallel to the target's
+  // outward direction (they face each other for a proper connection).
+  const movingDirNorm = movingCP.direction.clone().normalize()
+  const desiredDir = targetWorldDir.clone().negate()
+  const alignQuat = new Quaternion().setFromUnitVectors(movingDirNorm, desiredDir)
 
-  // New position: target position minus the offset
-  const newPosition = targetWorldPos.clone().sub(cpOffset)
+  // Compute position:
+  // After rotation, the CP local position is transformed by the alignment quaternion.
+  //   cpWorld = componentOrigin + alignQuat * cpLocal
+  // We want cpWorld = targetWorldPos, therefore:
+  //   componentOrigin = targetWorldPos - alignQuat * cpLocal
+  const cpRotated = movingCP.position.clone().applyQuaternion(alignQuat)
+  const newPosition = targetWorldPos.clone().sub(cpRotated)
 
-  // For now, keep original rotation (rotation alignment is complex)
-  // TODO: Calculate proper rotation to align directions
-  const newRotation = movingComponent.rotation.clone()
+  // Convert quaternion to Euler for the store
+  const euler = new Euler().setFromQuaternion(alignQuat)
+  const newRotation = new Vector3(euler.x, euler.y, euler.z)
 
   return { position: newPosition, rotation: newRotation }
 }

@@ -1,14 +1,16 @@
-import React, { Suspense, useRef, useEffect } from 'react'
+import React, { Suspense, useRef, useEffect, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Grid, Environment } from '@react-three/drei'
+import { OrbitControls, Grid } from '@react-three/drei'
+import { EffectComposer, Outline } from '@react-three/postprocessing'
 import { PipeRenderer } from './PipeRenderer'
 import { ConnectionPointsVisualizer } from './ConnectionPointsVisualizer'
 import { ConnectionLinesVisualizer } from './ConnectionLinesVisualizer'
 import { ConnectionPointPositionTracker, ConnectionPointUI } from './ConnectionPointOverlay'
 import { ZoomControls } from '../ui/ZoomControls'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
+import { useCADStore } from '../../store/cadStore'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Vector3, Box3 } from 'three'
+import { Vector3, Box3, OrthographicCamera, Mesh } from 'three'
 import { getWorldPosition } from '../../utils/connectionHelpers'
 
 // Camera controls component to handle zoom
@@ -21,95 +23,70 @@ const CameraControls: React.FC<{ controlsRef: React.MutableRefObject<OrbitContro
       enabled={!isDragging}
       enableDamping
       dampingFactor={0.05}
-      minDistance={1}
-      maxDistance={50}
     />
+  )
+}
+
+// Outline effect reading selected mesh from cadStore
+const OutlineEffect: React.FC = () => {
+  const selectedId = useCADStore((s) => s.selectedId)
+  const meshRefs = useCADStore((s) => s.meshRefs)
+
+  const selectedMeshes = useMemo(() => {
+    if (!selectedId) return []
+    const meshes: Mesh[] = []
+    // Gather all mesh refs that match the selectedId
+    for (const [id, ref] of meshRefs) {
+      if (id === selectedId && ref.current) {
+        meshes.push(ref.current)
+      }
+    }
+    return meshes
+  }, [selectedId, meshRefs])
+
+  if (selectedMeshes.length === 0) return null
+
+  return (
+    <EffectComposer autoClear={false}>
+      <Outline
+        selection={selectedMeshes}
+        edgeStrength={3}
+        pulseSpeed={0}
+        visibleEdgeColor={0x1a1a1a}
+        hiddenEdgeColor={0x1a1a1a}
+        blur
+        xRay={false}
+      />
+    </EffectComposer>
   )
 }
 
 export const Scene3D: React.FC = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const components = useConfiguratorStore((state) => state.components)
-  const [gridSize, setGridSize] = React.useState(20)
-  const [gridCellSize, setGridCellSize] = React.useState(0.5)
+  const setSelected = useCADStore((s) => s.setSelected)
 
-  // Update grid based on camera distance (zoom level) and components
-  useEffect(() => {
-    if (!controlsRef.current) return
-
-    const updateGrid = () => {
-      if (!controlsRef.current) return
-
-      const controls = controlsRef.current
-      const camera = controls.object
-      const distance = camera.position.distanceTo(controls.target)
-
-      // Adjust cell size based on camera distance (zoom level)
-      // Closer = smaller cells, farther = larger cells
-      const baseCellSize = Math.max(0.1, Math.min(2.0, distance / 10))
-      setGridCellSize(baseCellSize)
-
-      // Adjust grid size based on components or camera distance
-      let newGridSize = Math.max(20, distance * 2)
-
-      if (components.length > 0) {
-        // Calculate bounding box to determine optimal grid size
-        const bbox = new Box3()
-        components.forEach((component) => {
-          bbox.expandByPoint(component.position)
-          component.connectionPoints.forEach((cp) => {
-            const worldPos = getWorldPosition(component, cp)
-            bbox.expandByPoint(worldPos)
-          })
-        })
-
-        const size = new Vector3()
-        bbox.getSize(size)
-        const maxDim = Math.max(size.x, size.y, size.z)
-
-        // Grid should be at least 2x the bounding box size
-        newGridSize = Math.max(newGridSize, maxDim * 3)
-      }
-
-      setGridSize(Math.ceil(newGridSize))
-    }
-
-    // Update grid initially and on control changes
-    updateGrid()
-
-    const controls = controlsRef.current
-    controls.addEventListener('change', updateGrid)
-
-    return () => {
-      controls.removeEventListener('change', updateGrid)
-    }
-  }, [components, controlsRef.current])
-
-  // Automatically frame all components when they change
+  // Automatically frame all components when they change (count or positions)
   useEffect(() => {
     if (components.length > 0 && controlsRef.current) {
-      // Small delay to ensure components are rendered
       const timer = setTimeout(() => {
         handleFrameComponents()
-      }, 100)
+      }, 200)
       return () => clearTimeout(timer)
     }
-  }, [components.length])
+  }, [components.length, components.map(c => `${c.position.x},${c.position.y},${c.position.z}`).join('|')])
 
   const handleFrameComponents = () => {
     if (!controlsRef.current || components.length === 0) return
 
     const controls = controlsRef.current
-    const camera = controls.object
+    const camera = controls.object as OrthographicCamera
 
     // Calculate bounding box of all components
     const bbox = new Box3()
 
     components.forEach((component) => {
-      // Add component position to bounding box
       bbox.expandByPoint(component.position)
-
-      // Also consider connection points for more accurate bounds
       component.connectionPoints.forEach((cp) => {
         const worldPos = getWorldPosition(component, cp)
         bbox.expandByPoint(worldPos)
@@ -122,19 +99,21 @@ export const Scene3D: React.FC = () => {
     const size = new Vector3()
     bbox.getSize(size)
 
-    // Calculate diagonal of bounding box
     const maxDim = Math.max(size.x, size.y, size.z)
 
-    // Calculate camera distance based on FOV and bounding box size
-    const fov = 60 // degrees
-    const fovRadians = (fov * Math.PI) / 180
-    // For first element, use 0.6 padding (closer = 90% fill), otherwise use 1.5 padding
-    const paddingFactor = components.length === 1 ? 0.6 : 1.5
-    const cameraDistance = Math.max(0.5, maxDim / Math.tan(fovRadians / 2)) * paddingFactor
+    // For orthographic camera, set zoom based on bounding box size
+    // The camera frustum half-height at zoom=1 is roughly canvas_height/2
+    // We want the bounding box to fit with some padding
+    const paddingFactor = components.length === 1 ? 1.5 : 1.0
+    const targetZoom = Math.max(10, 80 / Math.max(0.1, maxDim) * paddingFactor)
+
+    camera.zoom = Math.min(200, targetZoom)
+    camera.updateProjectionMatrix()
 
     // Position camera at an angle (45 degrees elevation, 45 degrees azimuth)
-    const angle = Math.PI / 4 // 45 degrees
-    const elevation = Math.PI / 4 // 45 degrees
+    const cameraDistance = 20
+    const angle = Math.PI / 4
+    const elevation = Math.PI / 4
 
     const offset = new Vector3(
       Math.cos(elevation) * Math.sin(angle) * cameraDistance,
@@ -145,40 +124,27 @@ export const Scene3D: React.FC = () => {
     camera.position.copy(center.clone().add(offset))
     controls.target.copy(center)
     controls.update()
-
-    // Adjust grid size based on bounding box
-    const gridSizeValue = Math.max(10, Math.ceil(maxDim * 2))
-    setGridSize(gridSizeValue)
   }
 
   const handleZoomIn = () => {
     if (controlsRef.current) {
-      const controls = controlsRef.current
-      const camera = controls.object
-      const distance = camera.position.distanceTo(controls.target)
-      const newDistance = Math.max(1, distance * 0.8) // Zoom in 20%
-
-      const direction = camera.position.clone().sub(controls.target).normalize()
-      camera.position.copy(controls.target.clone().add(direction.multiplyScalar(newDistance)))
-      controls.update()
+      const camera = controlsRef.current.object as OrthographicCamera
+      camera.zoom = Math.min(500, camera.zoom * 1.25)
+      camera.updateProjectionMatrix()
+      controlsRef.current.update()
     }
   }
 
   const handleZoomOut = () => {
     if (controlsRef.current) {
-      const controls = controlsRef.current
-      const camera = controls.object
-      const distance = camera.position.distanceTo(controls.target)
-      const newDistance = Math.min(50, distance * 1.2) // Zoom out 20%
-
-      const direction = camera.position.clone().sub(controls.target).normalize()
-      camera.position.copy(controls.target.clone().add(direction.multiplyScalar(newDistance)))
-      controls.update()
+      const camera = controlsRef.current.object as OrthographicCamera
+      camera.zoom = Math.max(5, camera.zoom * 0.8)
+      camera.updateProjectionMatrix()
+      controlsRef.current.update()
     }
   }
 
   const handleResetView = () => {
-    // Frame all components instead of resetting to default position
     handleFrameComponents()
   }
 
@@ -222,44 +188,39 @@ export const Scene3D: React.FC = () => {
     }
   }
 
+  const handlePointerMissed = () => {
+    setSelected(null)
+  }
+
   return (
     <div className="relative w-full h-full">
     <Canvas
-      camera={{ position: [3, 3, 3], fov: 60 }}
-      shadows
+      orthographic
+      camera={{ zoom: 80, position: [10, 10, 10] }}
       style={{ background: '#263238' }}
+      onPointerMissed={handlePointerMissed}
     >
       <Suspense fallback={null}>
-        {/* Lighting */}
-        <ambientLight intensity={0.5} />
-        <directionalLight
-          position={[10, 10, 5]}
-          intensity={1}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-        />
-        <pointLight position={[-10, -10, -5]} intensity={0.5} />
+        {/* Flat CAD lighting */}
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[10, 10, 5]} intensity={0.8} />
+        <directionalLight position={[-5, 8, -3]} intensity={0.4} />
 
-        {/* Environment for reflections */}
-        <Environment preset="city" />
-
-        {/* Grid - adapts to zoom level and components */}
+        {/* Dark grid at y=0 */}
         <Grid
-          args={[gridSize, gridSize]}
-          cellSize={gridCellSize}
-          cellThickness={gridCellSize * 0.5}
-          cellColor="#6f9fd8"
-          sectionSize={gridCellSize * 4}
-          sectionThickness={gridCellSize}
-          sectionColor="#2563eb"
-          fadeDistance={Math.max(25, gridSize * 1.5)}
+          infiniteGrid
+          sectionSize={1}
+          sectionColor="#444444"
+          cellSize={0.25}
+          cellColor="#222222"
+          cellThickness={0.5}
+          sectionThickness={1}
+          fadeDistance={50}
           fadeStrength={1}
           followCamera={false}
-          infiniteGrid
         />
 
-        {/* Camera controls - Disabled while dragging objects */}
+        {/* Camera controls */}
         <CameraControls controlsRef={controlsRef} />
 
         {/* Render all pipes */}
@@ -273,6 +234,9 @@ export const Scene3D: React.FC = () => {
 
         {/* Track connection point positions for 2D overlay */}
         <ConnectionPointPositionTracker />
+
+        {/* Outline postprocessing */}
+        <OutlineEffect />
       </Suspense>
     </Canvas>
 

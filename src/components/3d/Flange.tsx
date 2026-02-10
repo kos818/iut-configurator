@@ -1,6 +1,6 @@
-import React, { useRef } from 'react'
-import { Mesh } from 'three'
-import { getMaterialColor, getMaterialMetalness, getMaterialRoughness } from '../../utils/materialColors'
+import React, { useMemo } from 'react'
+import { CylinderGeometry } from 'three'
+import { CADMesh } from '../cad/CADMesh'
 import { useDraggable } from '../../hooks/useDraggable'
 
 interface FlangeProps {
@@ -17,29 +17,23 @@ export const Flange: React.FC<FlangeProps> = ({
   diameter,
   position,
   rotation,
-  selected,
-  material,
 }) => {
-  const meshRef = useRef<Mesh>(null)
   const { dragHandlers } = useDraggable(id)
 
   const outerRadius = (diameter / 2) / 1000
   const flangeRadius = outerRadius * 2
   const flangeThickness = outerRadius * 0.3
 
-  const color = getMaterialColor(material, selected)
-  const metalness = getMaterialMetalness(material)
-  const roughness = getMaterialRoughness(material)
+  const diskGeom = useMemo(
+    () => new CylinderGeometry(flangeRadius, flangeRadius, flangeThickness, 32),
+    [flangeRadius, flangeThickness]
+  )
 
   return (
     <group position={position} rotation={rotation} {...dragHandlers}>
-      {/* Flange disk */}
-      <mesh ref={meshRef}>
-        <cylinderGeometry args={[flangeRadius, flangeRadius, flangeThickness, 32]} />
-        <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
-      </mesh>
+      <CADMesh id={id} geometry={diskGeom} />
 
-      {/* Bolt holes (8 around the flange) */}
+      {/* Bolt holes - dark accent */}
       {[...Array(8)].map((_, i) => {
         const angle = (i / 8) * Math.PI * 2
         const x = Math.cos(angle) * flangeRadius * 0.8

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(claude --version:*)",
+      "Bash(claude config set:*)",
+      "Bash(claude config --help:*)",
+      "Bash(dir:*)",
+      "Bash(npx vite build:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(npx vite --port 3000)",
+      "Bash(node:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\svenk\\\\Desktop\\\\KOS\\\\Claude\\\\public\\\\models\"\" 2>&1 || echo \"Models directory structure: \")",
+      "Bash(xxd:*)",
+      "Bash(python3:*)",
+      "Bash(npm run dev:*)",
+      "Bash(echo:*)",
+      "Bash(timeout 15 npx vite:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
