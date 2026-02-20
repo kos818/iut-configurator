@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import { Plus } from 'lucide-react'
-import { Vector3, Euler } from 'three'
+import { Vector3, Euler, Quaternion } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
-import { calculateConnectionRotation } from '../../utils/rotationHelpers'
 import { QuickAddMenu } from '../ui/QuickAddMenu'
 import { ComponentTemplate, PipeComponent, ConnectionPoint, DNValue, ConnectionMethod } from '../../types'
 
@@ -132,6 +131,7 @@ export const ConnectionPointUI: React.FC = () => {
       armLength: templateWithDN.defaultArmLength,
       teeArmLengths: templateWithDN.defaultTeeArmLengths,
       elbowArmLengths: templateWithDN.defaultElbowArmLengths,
+      branchAngle: templateWithDN.defaultBranchAngle,
       price: 0,
       material: templateWithDN.material,
       connectionPoints: [],
@@ -140,18 +140,22 @@ export const ConnectionPointUI: React.FC = () => {
     }
     const tempCPs = generateConnectionPoints(tempComponent as PipeComponent)
     const selectedCP = tempCPs.length > newComponentCPIndex ? tempCPs[newComponentCPIndex] : tempCPs[0]
-    const selectedCPDirection = selectedCP ? selectedCP.direction : new Vector3(0, 1, 0)
+    const selectedCPDirection = selectedCP ? selectedCP.direction.clone().normalize() : new Vector3(0, 1, 0)
     const selectedCPPosition = selectedCP ? selectedCP.position : new Vector3(0, 0, 0)
 
     // Get world direction of target connection point
     const targetWorldDirection = getWorldDirection(targetComponent, targetCP)
 
-    // Calculate rotation to align new component with target
-    const rotation = calculateConnectionRotation(targetWorldDirection, selectedCPDirection)
+    // Use quaternion math to avoid gimbal-lock precision issues
+    const desiredDir = targetWorldDirection.clone().negate()
+    const alignQuat = new Quaternion().setFromUnitVectors(selectedCPDirection, desiredDir)
 
-    // Apply rotation to the connection point position to get the offset in world space
-    const rotatedCPOffset = selectedCPPosition.clone()
-    rotatedCPOffset.applyEuler(new Euler(rotation.x, rotation.y, rotation.z))
+    // Convert quaternion to Euler for the store
+    const euler = new Euler().setFromQuaternion(alignQuat)
+    const rotation = new Vector3(euler.x, euler.y, euler.z)
+
+    // Apply quaternion (not Euler) to the CP offset for maximum precision
+    const rotatedCPOffset = selectedCPPosition.clone().applyQuaternion(alignQuat)
 
     // Calculate the actual component position: target position minus the rotated CP offset
     const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)

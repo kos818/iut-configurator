@@ -1,19 +1,24 @@
-import React, { useState } from 'react'
-import { Vector3, Euler } from 'three'
+import React, { useState, useEffect, useRef } from 'react'
+import { Vector3, Euler, Quaternion } from 'three'
+import { AlertTriangle } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
-import { ConnectionMethod, ConnectionPoint, DNValue } from '../../types'
+import { ConnectionMethod, ConnectionPoint, DNValue, PNValue } from '../../types'
 import { GlobalChangeDialog } from './GlobalChangeDialog'
-import { RotationDialog } from './RotationDialog'
+import { checkCollisions } from '../../utils/collisionDetection'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
   const selectedId = useConfiguratorStore((state) => state.selectedComponent)
   const updateComponent = useConfiguratorStore((state) => state.updateComponent)
+  const batchUpdateComponents = useConfiguratorStore((state) => state.batchUpdateComponents)
   const updateAllComponents = useConfiguratorStore((state) => state.updateAllComponents)
   const removeComponent = useConfiguratorStore((state) => state.removeComponent)
   const projectSettings = useConfiguratorStore((state) => state.projectSettings)
   const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
+  const collisionWarnings = useConfiguratorStore((state) => state.collisionWarnings)
+  const setCollisionWarnings = useConfiguratorStore((state) => state.setCollisionWarnings)
+  const undo = useConfiguratorStore((state) => state.undo)
 
   // State for global change dialog
   const [globalChangeDialog, setGlobalChangeDialog] = useState<{
@@ -24,25 +29,131 @@ export const PropertiesPanel: React.FC = () => {
     onConfirm: (applyGlobally: boolean) => void
   } | null>(null)
 
-  // State for rotation dialog
-  const [rotationDialog, setRotationDialog] = useState<{
-    show: boolean
-    axis: 'x' | 'y' | 'z'
-    oldValue: number
-    newValue: number
-    connectedComponents: Array<{ id: string; name: string; type: string }>
-    onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => void
-  } | null>(null)
+  // State for expanded connection type picker per CP
+  const [expandedConnectionCP, setExpandedConnectionCP] = useState<string | null>(null)
 
-  // State for remembered rotation selection
-  const [rememberedRotationSelection, setRememberedRotationSelection] = useState<string[] | null>(null)
+  // State for CP rotation sliders — tracks cumulative delta per CP, resets on selection change
+  const [cpRotations, setCpRotations] = useState<Record<string, number>>({})
+
+  // Debug state for collision check visibility
+  const [collisionDebug, setCollisionDebug] = useState('')
+
+  // Reset CP rotation sliders when selection changes
+  useEffect(() => {
+    setCpRotations({})
+  }, [selectedId])
+
+  // Collision confirmation dialog
+  const [showCollisionDialog, setShowCollisionDialog] = useState(false)
+
+  // Track previous blocked collisions so we only show the dialog for NEW ones
+  const prevBlockedKeysRef = useRef<Set<string>>(new Set())
+
+  // Global collision check — runs whenever components change
+  useEffect(() => {
+    console.log(`[PropertiesPanel] Collision check triggered, ${components.length} components`)
+    if (components.length < 2) {
+      if (collisionWarnings.length > 0) setCollisionWarnings([])
+      prevBlockedKeysRef.current = new Set()
+      return
+    }
+
+    let result: ReturnType<typeof checkCollisions>
+    try {
+      result = checkCollisions(components)
+    } catch (err) {
+      console.error('[PropertiesPanel] Collision check CRASHED:', err)
+      setCollisionDebug(`FEHLER: ${err}`)
+      return
+    }
+
+    setCollisionDebug(`${components.length} Komp., ${result.warnings.length} Warnungen (blocked=${result.hasBlocked})`)
+    console.log(`[PropertiesPanel] Collision result: ${result.warnings.length} warnings, hasBlocked=${result.hasBlocked}`)
+
+    // Compare to avoid unnecessary re-renders
+    const oldKey = collisionWarnings.map(w => `${w.id1}:${w.id2}:${w.type}`).sort().join(',')
+    const newKey = result.warnings.map(w => `${w.id1}:${w.id2}:${w.type}`).sort().join(',')
+    if (oldKey !== newKey) {
+      console.log(`[PropertiesPanel] Updating collision warnings: "${oldKey}" → "${newKey}"`)
+      setCollisionWarnings(result.warnings)
+    }
+
+    // Detect NEW blocked collisions → show confirmation dialog
+    const currentBlockedKeys = new Set(
+      result.warnings
+        .filter(w => w.type === 'blocked')
+        .map(w => [w.id1, w.id2].sort().join(':'))
+    )
+    const hasNewBlocked = [...currentBlockedKeys].some(
+      key => !prevBlockedKeysRef.current.has(key)
+    )
+    if (hasNewBlocked) {
+      console.log('[PropertiesPanel] New blocked collision detected → showing dialog')
+      setShowCollisionDialog(true)
+    }
+    prevBlockedKeysRef.current = currentBlockedKeys
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [components])
+
+  // Available connection/flange types
+  const connectionTemplates = componentTemplates.filter(t => t.group === 'connections')
 
   const selectedComponent = components.find((c) => c.id === selectedId)
+
+  // Collision banners helper (used in both views)
+  const collisionBanners = (
+    <>
+      {/* Warning banner (yellow) */}
+      {collisionWarnings.length > 0 && !collisionWarnings.some(w => w.type === 'blocked') && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-yellow-900 bg-opacity-80 text-yellow-200 border border-yellow-700">
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span>Achtung: Komponenten in der Nähe</span>
+        </div>
+      )}
+      {/* Blocked banner (red) */}
+      {collisionWarnings.some(w => w.type === 'blocked') && !showCollisionDialog && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-red-900 bg-opacity-80 text-red-200 border border-red-700">
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span>Kollision — Elemente überlappen sich!</span>
+        </div>
+      )}
+      {/* Confirmation Dialog */}
+      {showCollisionDialog && (
+        <div className="mb-3 p-3 rounded border-2 border-red-600 bg-red-950 bg-opacity-95">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={18} className="text-red-400 flex-shrink-0" />
+            <span className="text-red-200 text-sm font-semibold">Kollision erkannt!</span>
+          </div>
+          <p className="text-red-300 text-xs mb-3">
+            Elemente überlappen sich. In der Realität wäre diese Konfiguration nicht umsetzbar. Möchten Sie trotzdem fortfahren?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowCollisionDialog(false)}
+              className="flex-1 px-3 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-gray-500 transition-colors"
+            >
+              Beibehalten
+            </button>
+            <button
+              onClick={() => { setShowCollisionDialog(false); undo() }}
+              className="flex-1 px-3 py-1.5 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-500 transition-colors"
+            >
+              Rückgängig
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
 
   if (!selectedComponent) {
     return (
       <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
         <h2 className="text-xl font-bold text-white mb-4">Eigenschaften</h2>
+        {collisionBanners}
+        {collisionDebug && (
+          <div className="text-gray-500 text-[10px] mb-2 font-mono">[Debug] {collisionDebug}</div>
+        )}
         <p className="text-gray-400">Keine Komponente ausgewählt</p>
       </div>
     )
@@ -67,7 +178,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ dn: newDN as DNValue })
             // Update project settings
-            setProjectSettings(projectSettings.defaultMaterial, newDN, projectSettings.defaultWallThickness)
+            setProjectSettings(projectSettings.defaultMaterial, newDN, projectSettings.defaultPN, projectSettings.defaultWallThickness)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { dn: newDN as any })
@@ -82,11 +193,7 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleLengthChange = (newLength: number) => {
-    if (selectedComponent.type === 'straight' ||
-        selectedComponent.type === 'f_piece' ||
-        selectedComponent.type === 'ff_piece' ||
-        selectedComponent.type === 'ff_piece_one_branch' ||
-        selectedComponent.type === 'ff_piece_two_branches') {
+    if (selectedComponent.type === 'straight') {
       const oldLength = selectedComponent.length || 1000
       const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
 
@@ -203,7 +310,7 @@ export const PropertiesPanel: React.FC = () => {
     }
   }
 
-  const handleMaterialChange = (newMaterial: 'steel' | 'stainless' | 'copper' | 'pvc') => {
+  const handleMaterialChange = (newMaterial: 'steel' | 'stainless_v2a' | 'stainless_v4a') => {
     const oldMaterial = selectedComponent.material
 
     // If project settings are configured and component count > 1, show global change dialog
@@ -218,7 +325,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ material: newMaterial })
             // Update project settings
-            setProjectSettings(newMaterial, projectSettings.defaultDN, projectSettings.defaultWallThickness)
+            setProjectSettings(newMaterial, projectSettings.defaultDN, projectSettings.defaultPN, projectSettings.defaultWallThickness)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { material: newMaterial })
@@ -233,31 +340,23 @@ export const PropertiesPanel: React.FC = () => {
   }
 
   const handleArmLengthChange = (arm: 'inlet' | 'outlet' | 'branch', newLength: number) => {
-    if (selectedComponent.type === 'tee' ||
-        selectedComponent.type === 'ffft_symmetrical' ||
-        selectedComponent.type === 'ffft_asymmetrical' ||
-        selectedComponent.type === 'ffq_equal' ||
-        selectedComponent.type === 'ffq_unequal' ||
-        selectedComponent.type === 'fffor_one_branch' ||
-        selectedComponent.type === 'fffrk_one_branch' ||
-        selectedComponent.type === 'wye' ||
-        selectedComponent.type === 'wye_angled' ||
-        selectedComponent.type === 'union_straight' ||
-        selectedComponent.type === 'union_angled') {
+    if (selectedComponent.type === 'tee') {
+      const teeDefaults = selectedComponent.type === 'tee' ? { inlet: 156, outlet: 156, branch: 177 } : { inlet: 200, outlet: 200, branch: 200 }
       const currentArmLengths = selectedComponent.teeArmLengths || {
-        inlet: selectedComponent.armLength || 200,
-        outlet: selectedComponent.armLength || 200,
-        branch: selectedComponent.armLength || 200
+        inlet: selectedComponent.armLength || teeDefaults.inlet,
+        outlet: selectedComponent.armLength || teeDefaults.outlet,
+        branch: selectedComponent.armLength || teeDefaults.branch
       }
 
       const oldLength = currentArmLengths[arm]
       const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
 
       // Map arm names to connection point types and directions in local space
+      // Branch direction uses branchAngle (default 45° for tee)
       const armConfig: Record<'inlet' | 'outlet' | 'branch', { label: string; direction: Vector3 }> = {
         inlet: { label: 'A', direction: new Vector3(-1, 0, 0) }, // left
         outlet: { label: 'B', direction: new Vector3(1, 0, 0) }, // right
-        branch: { label: 'C', direction: new Vector3(0, 1, 0) }, // top
+        branch: { label: 'C', direction: new Vector3(0.5338, 0.8457, 0).normalize() }, // center->opening direction from STEP
       }
 
       const config = armConfig[arm]
@@ -325,343 +424,83 @@ export const PropertiesPanel: React.FC = () => {
     }
   }
 
-  const handlePositionChange = (axis: 'x' | 'y' | 'z', value: number) => {
-    const newPosition = selectedComponent.position.clone()
-    newPosition[axis] = value
-    updateComponent(selectedComponent.id, { position: newPosition })
-  }
+  // Rotate the component around a specific connection point (pivot = CP world pos, axis = CP direction)
+  // The component connected at this CP stays fixed; the selected component + everything at other CPs moves.
+  const handleCPRotation = (cpId: string, newValueDeg: number) => {
+    const oldValueDeg = cpRotations[cpId] || 0
+    const deltaDeg = newValueDeg - oldValueDeg
+    if (Math.abs(deltaDeg) < 0.01) return
 
-  // Helper function to find all directly connected components
-  const findConnectedComponents = (component: typeof selectedComponent) => {
-    if (!component) return []
+    const deltaRad = (deltaDeg * Math.PI) / 180
 
-    const connectedComponentsList: Array<{ id: string; name: string; type: string }> = []
-    const connectedIds = new Set<string>()
+    // Find the CP on the selected component
+    const cp = selectedComponent.connectionPoints.find((p: ConnectionPoint) => p.id === cpId)
+    if (!cp || !cp.connectedTo) return
 
-    component.connectionPoints.forEach((cp: ConnectionPoint) => {
-      if (cp.connectedTo) {
-        const connectedComp = components.find((c) =>
-          c.connectionPoints.some((p) => p.id === cp.connectedTo)
-        )
-        if (connectedComp && !connectedIds.has(connectedComp.id)) {
-          connectedIds.add(connectedComp.id)
-          const template = componentTemplates.find((t) => t.type === connectedComp.type)
-          connectedComponentsList.push({
-            id: connectedComp.id,
-            name: template?.name || connectedComp.type,
-            type: connectedComp.type,
-          })
-        }
-      }
-    })
+    // Compute CP world position (pivot) and world direction (rotation axis)
+    const compEuler = new Euler(
+      selectedComponent.rotation.x,
+      selectedComponent.rotation.y,
+      selectedComponent.rotation.z
+    )
+    const pivot = cp.position.clone().applyEuler(compEuler).add(selectedComponent.position)
+    const axis = cp.direction.clone().applyEuler(compEuler).normalize()
 
-    return connectedComponentsList
-  }
+    // Quaternion for this incremental rotation
+    const rotQuat = new Quaternion().setFromAxisAngle(axis, deltaRad)
 
-  const handleRotationChange = (axis: 'x' | 'y' | 'z', value: number) => {
-    // Normalize value to 0-360 range
-    let normalizedValue = value % 360
-    if (normalizedValue < 0) normalizedValue += 360
+    // Collect updates: rotate selected component + everything reachable EXCEPT the anchor subtree
+    const updates: Array<{ id: string; changes: Partial<import('../../types').PipeComponent> }> = []
+    const visited = new Set<string>()
 
-    // Get current rotation in degrees
-    const oldValueDegrees = (selectedComponent.rotation[axis] * 180) / Math.PI
+    // The anchor component (connected at this CP) stays fixed — block traversal through it
+    const anchorComp = components.find(c =>
+      c.connectionPoints.some((p: ConnectionPoint) => p.id === cp.connectedTo)
+    )
+    if (anchorComp) visited.add(anchorComp.id)
 
-    // Find all directly connected components
-    const connectedComps = findConnectedComponents(selectedComponent)
+    const rotateTree = (compId: string) => {
+      if (visited.has(compId)) return
+      visited.add(compId)
 
-    // If there's a remembered selection, apply it directly without dialog
-    if (rememberedRotationSelection !== null) {
-      applyRotation(axis, normalizedValue, true, rememberedRotationSelection)
-      return
-    }
-
-    // Show rotation dialog
-    setRotationDialog({
-      show: true,
-      axis,
-      oldValue: oldValueDegrees,
-      newValue: normalizedValue,
-      connectedComponents: connectedComps,
-      onConfirm: (rotateConnected: boolean, selectedComponentIds: string[]) => {
-        applyRotation(axis, normalizedValue, rotateConnected, selectedComponentIds)
-        setRotationDialog(null)
-      }
-    })
-  }
-
-  const handleRememberRotationSelection = (selectedComponentIds: string[]) => {
-    setRememberedRotationSelection(selectedComponentIds)
-    setRotationDialog(null)
-  }
-
-  const handleClearRotationSelection = () => {
-    setRememberedRotationSelection(null)
-  }
-
-  // Apply rotation with optional propagation to connected components
-  const applyRotation = (
-    axis: 'x' | 'y' | 'z',
-    valueDegrees: number,
-    rotateConnected: boolean,
-    selectedComponentIds: string[]
-  ) => {
-    const newRotation = selectedComponent.rotation.clone()
-    const oldRotation = selectedComponent.rotation.clone()
-    newRotation[axis] = (valueDegrees * Math.PI) / 180 // Convert to radians
-
-    // Calculate rotation difference
-    const rotationDiff = newRotation[axis] - oldRotation[axis]
-
-    // Update the component's rotation
-    updateComponent(selectedComponent.id, { rotation: newRotation })
-
-    if (!rotateConnected || selectedComponentIds.length === 0) {
-      // Only rotate this component, no propagation
-      return
-    }
-
-    // Helper function to rotate a component and all its connected components recursively
-    const rotateComponentTree = (
-      componentId: string,
-      rotationAxis: 'x' | 'y' | 'z',
-      rotationDelta: number,
-      pivotPoint: Vector3,
-      allowedIds: Set<string>,
-      visitedIds: Set<string> = new Set()
-    ) => {
-      if (visitedIds.has(componentId)) return
-      visitedIds.add(componentId)
-
-      // Get fresh component data from store
-      const currentComponents = useConfiguratorStore.getState().components
-      const comp = currentComponents.find((c) => c.id === componentId)
+      const comp = components.find(c => c.id === compId)
       if (!comp) return
 
-      // Calculate new position by rotating around pivot point
-      const relativePos = comp.position.clone().sub(pivotPoint)
+      // Rotate position around pivot
+      const relPos = comp.position.clone().sub(pivot)
+      relPos.applyQuaternion(rotQuat)
+      const newPos = relPos.add(pivot)
 
-      // Create rotation matrix for the axis
-      if (rotationAxis === 'x') {
-        const y = relativePos.y
-        const z = relativePos.z
-        relativePos.y = y * Math.cos(rotationDelta) - z * Math.sin(rotationDelta)
-        relativePos.z = y * Math.sin(rotationDelta) + z * Math.cos(rotationDelta)
-      } else if (rotationAxis === 'y') {
-        const x = relativePos.x
-        const z = relativePos.z
-        relativePos.x = x * Math.cos(rotationDelta) + z * Math.sin(rotationDelta)
-        relativePos.z = -x * Math.sin(rotationDelta) + z * Math.cos(rotationDelta)
-      } else if (rotationAxis === 'z') {
-        const x = relativePos.x
-        const y = relativePos.y
-        relativePos.x = x * Math.cos(rotationDelta) - y * Math.sin(rotationDelta)
-        relativePos.y = x * Math.sin(rotationDelta) + y * Math.cos(rotationDelta)
-      }
+      // Compose rotation: apply the rotation quaternion on top of the existing rotation
+      const compQuat = new Quaternion().setFromEuler(
+        new Euler(comp.rotation.x, comp.rotation.y, comp.rotation.z)
+      )
+      const newQuat = rotQuat.clone().multiply(compQuat)
+      const newEuler = new Euler().setFromQuaternion(newQuat)
+      const newRotation = new Vector3(newEuler.x, newEuler.y, newEuler.z)
 
-      const newPos = relativePos.add(pivotPoint)
+      updates.push({ id: compId, changes: { position: newPos, rotation: newRotation } })
 
-      // Update component rotation and position
-      const newCompRotation = comp.rotation.clone()
-      newCompRotation[rotationAxis] += rotationDelta
-
-      updateComponent(componentId, {
-        position: newPos,
-        rotation: newCompRotation
-      })
-
-      // Recursively rotate all connected components except the original
-      comp.connectionPoints.forEach((cp: ConnectionPoint) => {
-        if (cp.connectedTo) {
-          // Get fresh components for finding connected component
-          const freshComponents = useConfiguratorStore.getState().components
-          const connectedComp = freshComponents.find((c) =>
-            c.connectionPoints.some((p) => p.id === cp.connectedTo)
+      // Traverse to all connected components (anchor is already in visited)
+      comp.connectionPoints.forEach((p: ConnectionPoint) => {
+        if (p.connectedTo) {
+          const connComp = components.find(c =>
+            c.connectionPoints.some(cp2 => cp2.id === p.connectedTo)
           )
-          if (connectedComp && connectedComp.id !== selectedComponent.id && allowedIds.has(connectedComp.id)) {
-            rotateComponentTree(connectedComp.id, rotationAxis, rotationDelta, pivotPoint, allowedIds, visitedIds)
-          }
+          if (connComp) rotateTree(connComp.id)
         }
       })
     }
 
-    // Rotate selected connected component trees
-    const allowedIds = new Set(selectedComponentIds)
-    selectedComponentIds.forEach((compId) => {
-      if (rotationDiff !== 0) {
-        rotateComponentTree(compId, axis, rotationDiff, selectedComponent.position, allowedIds)
-      }
-    })
-  }
+    // Start from the selected component itself
+    rotateTree(selectedComponent.id)
 
-  const handleElbowArmLengthChange = (arm: 'inlet' | 'outlet', newLength: number) => {
-    if (selectedComponent.type === 'elbow' ||
-        selectedComponent.type === 'frk_equal' ||
-        selectedComponent.type === 'frk_unequal') {
-      const defaultArmLength = (selectedComponent.dn / 2) * 3 // 3x radius as default
-      const currentArmLengths = selectedComponent.elbowArmLengths || {
-        inlet: defaultArmLength,
-        outlet: defaultArmLength
-      }
+    if (updates.length === 0) return
 
-      const oldLength = currentArmLengths[arm]
-      const lengthDiff = (newLength - oldLength) / 1000 // Convert to meters
-
-      // Get elbow angle
-      const angleInDegrees = selectedComponent.angle || 90
-      const angleInRadians = (angleInDegrees * Math.PI) / 180
-
-      // Map arm names to connection point labels and directions
-      const armConfig: Record<'inlet' | 'outlet', { label: string; getDirection: () => Vector3 }> = {
-        inlet: {
-          label: 'A',
-          getDirection: () => new Vector3(0, -1, 0) // inlet always points down
-        },
-        outlet: {
-          label: 'B',
-          getDirection: () => new Vector3(Math.sin(angleInRadians), -Math.cos(angleInRadians), 0) // outlet rotated by angle
-        }
-      }
-
-      const config = armConfig[arm]
-
-      // Find the connection point for this arm
-      const armCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === config.label)
-
-      if (armCP && armCP.connectedTo) {
-        // Calculate the offset in local space
-        const localOffset = config.getDirection().multiplyScalar(lengthDiff)
-
-        // Apply rotation to get world space offset
-        const worldOffset = localOffset.clone()
-        worldOffset.applyEuler(new Euler(
-          selectedComponent.rotation.x,
-          selectedComponent.rotation.y,
-          selectedComponent.rotation.z
-        ))
-
-        // Helper function to move a component and all connected components recursively
-        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
-          if (visitedIds.has(componentId)) return
-          visitedIds.add(componentId)
-
-          // Get fresh component data from store
-          const currentComponents = useConfiguratorStore.getState().components
-          const comp = currentComponents.find((c) => c.id === componentId)
-          if (!comp) return
-
-          // Move this component
-          const newPos = comp.position.clone().add(offset)
-          updateComponent(componentId, { position: newPos })
-
-          // Recursively move all connected components except the original elbow
-          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
-            if (cp.connectedTo && cp.connectedTo !== armCP.id) {
-              // Get fresh components for finding connected component
-              const freshComponents = useConfiguratorStore.getState().components
-              const connectedComp = freshComponents.find((c) =>
-                c.connectionPoints.some((p) => p.id === cp.connectedTo)
-              )
-              if (connectedComp && connectedComp.id !== selectedComponent.id) {
-                moveComponentTree(connectedComp.id, offset, visitedIds)
-              }
-            }
-          })
-        }
-
-        // Find the connected component and move it
-        const connectedComp = components.find((c) =>
-          c.connectionPoints.some((cp) => cp.id === armCP.connectedTo)
-        )
-        if (connectedComp) {
-          moveComponentTree(connectedComp.id, worldOffset)
-        }
-      }
-
-      // Update the elbow arm lengths
-      updateComponent(selectedComponent.id, {
-        elbowArmLengths: {
-          ...currentArmLengths,
-          [arm]: newLength
-        }
-      })
-    }
-  }
-
-  const handleElbowAngleChange = (newAngle: number) => {
-    if (selectedComponent.type === 'elbow' ||
-        selectedComponent.type === 'frk_equal' ||
-        selectedComponent.type === 'frk_unequal') {
-      // When angle changes, we need to reposition the outlet-connected component
-      const outletCP = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
-
-      if (outletCP && outletCP.connectedTo) {
-        // Calculate old and new outlet positions
-        const defaultArmLength = (selectedComponent.dn / 2) * 3
-        const outletLength = (selectedComponent.elbowArmLengths?.outlet || defaultArmLength) / 1000
-
-        const oldAngleRad = ((selectedComponent.angle || 90) * Math.PI) / 180
-        const newAngleRad = (newAngle * Math.PI) / 180
-
-        // Old outlet position
-        const oldOutletX = outletLength * Math.sin(oldAngleRad)
-        const oldOutletY = -outletLength * Math.cos(oldAngleRad)
-
-        // New outlet position
-        const newOutletX = outletLength * Math.sin(newAngleRad)
-        const newOutletY = -outletLength * Math.cos(newAngleRad)
-
-        // Calculate the offset in local space
-        const localOffset = new Vector3(newOutletX - oldOutletX, newOutletY - oldOutletY, 0)
-
-        // Apply rotation to get world space offset
-        const worldOffset = localOffset.clone()
-        worldOffset.applyEuler(new Euler(
-          selectedComponent.rotation.x,
-          selectedComponent.rotation.y,
-          selectedComponent.rotation.z
-        ))
-
-        // Helper function to move a component and all connected components recursively
-        const moveComponentTree = (componentId: string, offset: Vector3, visitedIds: Set<string> = new Set()) => {
-          if (visitedIds.has(componentId)) return
-          visitedIds.add(componentId)
-
-          // Get fresh component data from store
-          const currentComponents = useConfiguratorStore.getState().components
-          const comp = currentComponents.find((c) => c.id === componentId)
-          if (!comp) return
-
-          // Move this component
-          const newPos = comp.position.clone().add(offset)
-          updateComponent(componentId, { position: newPos })
-
-          // Recursively move all connected components except the original elbow
-          comp.connectionPoints.forEach((cp: ConnectionPoint) => {
-            if (cp.connectedTo && cp.connectedTo !== outletCP.id) {
-              // Get fresh components for finding connected component
-              const freshComponents = useConfiguratorStore.getState().components
-              const connectedComp = freshComponents.find((c) =>
-                c.connectionPoints.some((p) => p.id === cp.connectedTo)
-              )
-              if (connectedComp && connectedComp.id !== selectedComponent.id) {
-                moveComponentTree(connectedComp.id, offset, visitedIds)
-              }
-            }
-          })
-        }
-
-        // Find the connected component and move it
-        const connectedComp = components.find((c) =>
-          c.connectionPoints.some((cp) => cp.id === outletCP.connectedTo)
-        )
-        if (connectedComp) {
-          moveComponentTree(connectedComp.id, worldOffset)
-        }
-      }
-
-      // Update the elbow angle
-      updateComponent(selectedComponent.id, { angle: newAngle })
-    }
+    // Apply all changes as a single batch (one undo step)
+    // Global collision check (useEffect) will detect warnings/collisions automatically
+    batchUpdateComponents(updates)
+    setCpRotations(prev => ({ ...prev, [cpId]: newValueDeg }))
   }
 
   const handleConnectionMethodChange = (cpId: string, newMethod: ConnectionMethod) => {
@@ -690,17 +529,66 @@ export const PropertiesPanel: React.FC = () => {
     <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
       <h2 className="text-xl font-bold text-white mb-4">Eigenschaften</h2>
 
+      {/* Collision Warning Banner (yellow) */}
+      {collisionWarnings.length > 0 && !collisionWarnings.some(w => w.type === 'blocked') && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-yellow-900 bg-opacity-80 text-yellow-200 border border-yellow-700">
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span>Achtung: Komponenten in der Nähe</span>
+        </div>
+      )}
+
+      {/* Collision Blocked Banner (red) */}
+      {collisionWarnings.some(w => w.type === 'blocked') && !showCollisionDialog && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-red-900 bg-opacity-80 text-red-200 border border-red-700">
+          <AlertTriangle size={16} className="flex-shrink-0" />
+          <span>Kollision — Elemente überlappen sich!</span>
+        </div>
+      )}
+
+      {/* Debug: collision status */}
+      {collisionDebug && (
+        <div className="text-gray-500 text-[10px] mb-2 font-mono">[Debug] {collisionDebug}</div>
+      )}
+
+      {/* Collision Confirmation Dialog */}
+      {showCollisionDialog && (
+        <div className="mb-3 p-3 rounded border-2 border-red-600 bg-red-950 bg-opacity-95">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={18} className="text-red-400 flex-shrink-0" />
+            <span className="text-red-200 text-sm font-semibold">Kollision erkannt!</span>
+          </div>
+          <p className="text-red-300 text-xs mb-3">
+            Elemente überlappen sich. In der Realität wäre diese Konfiguration nicht umsetzbar. Möchten Sie trotzdem fortfahren?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                // User accepts collision — close dialog, keep state
+                setShowCollisionDialog(false)
+              }}
+              className="flex-1 px-3 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-gray-500 transition-colors"
+            >
+              Beibehalten
+            </button>
+            <button
+              onClick={() => {
+                // User rejects collision — undo last action
+                setShowCollisionDialog(false)
+                undo()
+              }}
+              className="flex-1 px-3 py-1.5 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-500 transition-colors"
+            >
+              Rückgängig
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div>
           <label className="text-gray-300 text-sm">Typ</label>
           <div className="text-white font-semibold">
-            {selectedComponent.type === 'ffft_asymmetrical' ? (
-              <>
-                {template?.name} DN{selectedComponent.inletDN || selectedComponent.dn}/{selectedComponent.outletDN || selectedComponent.dn}/{selectedComponent.branchDN || Math.max(20, selectedComponent.dn - 10)}
-              </>
-            ) : (
-              template?.name
-            )}
+            {template?.name}
           </div>
         </div>
 
@@ -712,9 +600,8 @@ export const PropertiesPanel: React.FC = () => {
             className="w-full bg-gray-700 text-white px-3 py-2 rounded"
           >
             <option value="steel">Stahl (×{materialMultipliers.steel})</option>
-            <option value="stainless">Edelstahl (×{materialMultipliers.stainless})</option>
-            <option value="copper">Kupfer (×{materialMultipliers.copper})</option>
-            <option value="pvc">PVC (×{materialMultipliers.pvc})</option>
+            <option value="stainless_v2a">V2A Edelstahl / 1.4301 (×{materialMultipliers.stainless_v2a})</option>
+            <option value="stainless_v4a">V4A Edelstahl / 1.4401 (×{materialMultipliers.stainless_v4a})</option>
           </select>
         </div>
 
@@ -730,6 +617,23 @@ export const PropertiesPanel: React.FC = () => {
             {template?.availableDNs.map((dn) => (
               <option key={dn} value={dn}>
                 DN{dn}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-gray-300 text-sm block mb-1">
+            Nenndruck (PN)
+          </label>
+          <select
+            value={selectedComponent.pn}
+            onChange={(e) => updateComponent(selectedComponent.id, { pn: Number(e.target.value) as PNValue })}
+            className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+          >
+            {template?.availablePNs.map((pn) => (
+              <option key={pn} value={pn}>
+                PN{pn} ({pn} bar)
               </option>
             ))}
           </select>
@@ -754,379 +658,7 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Flange position selection for F-Stück components */}
-        {(selectedComponent.type === 'f_piece' ||
-          selectedComponent.type === 'ff_piece' ||
-          selectedComponent.type === 'ff_piece_one_branch' ||
-          selectedComponent.type === 'ff_piece_two_branches') && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-2">
-              Flanschposition
-            </label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'inlet' })}
-                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
-                  selectedComponent.flangePosition === 'inlet'
-                    ? 'bg-blue-600 text-white font-semibold'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Eingang
-              </button>
-              <button
-                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'outlet' })}
-                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
-                  selectedComponent.flangePosition === 'outlet'
-                    ? 'bg-blue-600 text-white font-semibold'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Ausgang
-              </button>
-              <button
-                onClick={() => updateComponent(selectedComponent.id, { flangePosition: 'both' })}
-                className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
-                  selectedComponent.flangePosition === 'both'
-                    ? 'bg-blue-600 text-white font-semibold'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                Beide
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Bend radius for FFQ and FRK components */}
-        {(selectedComponent.type === 'ffq_equal' ||
-          selectedComponent.type === 'ffq_unequal' ||
-          selectedComponent.type === 'frk_equal' ||
-          selectedComponent.type === 'frk_unequal' ||
-          selectedComponent.type === 'fffrk_one_branch') && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-1">
-              Bogenradius (mm)
-            </label>
-            <input
-              type="number"
-              value={selectedComponent.bendRadius || 150}
-              onChange={(e) => updateComponent(selectedComponent.id, { bendRadius: Number(e.target.value) })}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-              min="50"
-              max="500"
-              step="10"
-            />
-          </div>
-        )}
-
-        {/* Inlet/Outlet DN for reducer components */}
-        {(selectedComponent.type === 'frr_concentric' ||
-          selectedComponent.type === 'frr_eccentric' ||
-          selectedComponent.type === 'frk_equal' ||
-          selectedComponent.type === 'frk_unequal') && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-2">
-              DN-Werte (Reduktion)
-            </label>
-            <div className="space-y-2">
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Eingang DN</label>
-                <select
-                  value={selectedComponent.inletDN || selectedComponent.dn}
-                  onChange={(e) => updateComponent(selectedComponent.id, { inletDN: Number(e.target.value) as DNValue })}
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Ausgang DN</label>
-                <select
-                  value={selectedComponent.outletDN || Math.max(20, selectedComponent.dn - 10)}
-                  onChange={(e) => updateComponent(selectedComponent.id, { outletDN: Number(e.target.value) as DNValue })}
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* FFFT asymmetric: Inlet/Outlet/Branch DN and Branch Offset */}
-        {selectedComponent.type === 'ffft_asymmetrical' && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-2">
-              DN-Werte (FFFT asymmetrisch)
-            </label>
-            <div className="space-y-2">
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Eingang DN</label>
-                <select
-                  value={selectedComponent.inletDN || selectedComponent.dn}
-                  onChange={(e) => updateComponent(selectedComponent.id, { inletDN: Number(e.target.value) as DNValue })}
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Ausgang DN</label>
-                <select
-                  value={selectedComponent.outletDN || selectedComponent.dn}
-                  onChange={(e) => updateComponent(selectedComponent.id, { outletDN: Number(e.target.value) as DNValue })}
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Abgang DN</label>
-                <select
-                  value={selectedComponent.branchDN || Math.max(20, selectedComponent.dn - 10)}
-                  onChange={(e) => updateComponent(selectedComponent.id, { branchDN: Number(e.target.value) as DNValue })}
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Branch offset for FFFT asymmetric */}
-        {selectedComponent.type === 'ffft_asymmetrical' && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-1">
-              Abgang-Versatz (mm)
-            </label>
-            <input
-              type="number"
-              value={selectedComponent.branchOffset || 0}
-              onChange={(e) => updateComponent(selectedComponent.id, { branchOffset: Number(e.target.value) })}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-              min="-200"
-              max="200"
-              step="10"
-            />
-            <p className="text-gray-500 text-xs mt-1">
-              Versatz von der Mittelachse (negativ = links, positiv = rechts)
-            </p>
-          </div>
-        )}
-
-        {/* Branch angle for FFFT asymmetric */}
-        {selectedComponent.type === 'ffft_asymmetrical' && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-1">
-              Abgang-Winkel (Grad)
-            </label>
-            <input
-              type="number"
-              value={selectedComponent.branchAngle || 90}
-              onChange={(e) => updateComponent(selectedComponent.id, { branchAngle: Number(e.target.value) })}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-              min="0"
-              max="180"
-              step="15"
-            />
-            <p className="text-gray-500 text-xs mt-1">
-              Winkel des Abgangs (90° = senkrecht zur Hauptleitung)
-            </p>
-          </div>
-        )}
-
-        {/* Branch configuration for components with branches */}
-        {(selectedComponent.type === 'ff_piece_one_branch' ||
-          selectedComponent.type === 'ff_piece_two_branches' ||
-          selectedComponent.type === 'fffor_one_branch' ||
-          selectedComponent.type === 'fffrk_one_branch') && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-2">
-              Abgang 1 Konfiguration
-            </label>
-            <div className="space-y-2 p-3 bg-gray-700 rounded">
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Winkel (Grad)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch1?.angle || 90}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch1: {
-                      ...(selectedComponent.branch1 || { position: 0.5, dn: selectedComponent.dn, length: 150 }),
-                      angle: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="0"
-                  max="360"
-                  step="15"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Position (0-1 entlang Hauptachse)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch1?.position || 0.5}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch1: {
-                      ...(selectedComponent.branch1 || { angle: 90, dn: selectedComponent.dn, length: 150 }),
-                      position: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">DN</label>
-                <select
-                  value={selectedComponent.branch1?.dn || selectedComponent.dn}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch1: {
-                      ...(selectedComponent.branch1 || { angle: 90, position: 0.5, length: 150 }),
-                      dn: Number(e.target.value) as DNValue
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Länge (mm)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch1?.length || 150}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch1: {
-                      ...(selectedComponent.branch1 || { angle: 90, position: 0.5, dn: selectedComponent.dn }),
-                      length: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="50"
-                  max="1000"
-                  step="50"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Branch 2 configuration for components with two branches */}
-        {selectedComponent.type === 'ff_piece_two_branches' && (
-          <div>
-            <label className="text-gray-300 text-sm block mb-2">
-              Abgang 2 Konfiguration
-            </label>
-            <div className="space-y-2 p-3 bg-gray-700 rounded">
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Winkel (Grad)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch2?.angle || 90}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch2: {
-                      ...(selectedComponent.branch2 || { position: 0.5, dn: selectedComponent.dn, length: 150 }),
-                      angle: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="0"
-                  max="360"
-                  step="15"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Position (0-1 entlang Hauptachse)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch2?.position || 0.5}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch2: {
-                      ...(selectedComponent.branch2 || { angle: 90, dn: selectedComponent.dn, length: 150 }),
-                      position: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">DN</label>
-                <select
-                  value={selectedComponent.branch2?.dn || selectedComponent.dn}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch2: {
-                      ...(selectedComponent.branch2 || { angle: 90, position: 0.5, length: 150 }),
-                      dn: Number(e.target.value) as DNValue
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                >
-                  {template?.availableDNs.map((dn) => (
-                    <option key={dn} value={dn}>
-                      DN{dn}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Länge (mm)</label>
-                <input
-                  type="number"
-                  value={selectedComponent.branch2?.length || 150}
-                  onChange={(e) => updateComponent(selectedComponent.id, {
-                    branch2: {
-                      ...(selectedComponent.branch2 || { angle: 90, position: 0.5, dn: selectedComponent.dn }),
-                      length: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full bg-gray-600 text-white px-3 py-2 rounded"
-                  min="50"
-                  max="1000"
-                  step="50"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {(selectedComponent.type === 'straight' ||
-          selectedComponent.type === 'f_piece' ||
-          selectedComponent.type === 'ff_piece' ||
-          selectedComponent.type === 'ff_piece_one_branch' ||
-          selectedComponent.type === 'ff_piece_two_branches') && (
+        {selectedComponent.type === 'straight' && (
           <div>
             <label className="text-gray-300 text-sm block mb-1">
               Länge (mm)
@@ -1143,17 +675,7 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {(selectedComponent.type === 'tee' ||
-          selectedComponent.type === 'ffft_symmetrical' ||
-          selectedComponent.type === 'ffft_asymmetrical' ||
-          selectedComponent.type === 'ffq_equal' ||
-          selectedComponent.type === 'ffq_unequal' ||
-          selectedComponent.type === 'fffor_one_branch' ||
-          selectedComponent.type === 'fffrk_one_branch' ||
-          selectedComponent.type === 'wye' ||
-          selectedComponent.type === 'wye_angled' ||
-          selectedComponent.type === 'union_straight' ||
-          selectedComponent.type === 'union_angled') && (
+        {selectedComponent.type === 'tee' && (
           <div>
             <label className="text-gray-300 text-sm block mb-2">
               Schenkellängen (mm)
@@ -1163,7 +685,7 @@ export const PropertiesPanel: React.FC = () => {
                 <label className="text-gray-400 text-xs block mb-1">Eingang (A - links)</label>
                 <input
                   type="number"
-                  value={selectedComponent.teeArmLengths?.inlet || selectedComponent.armLength || 200}
+                  value={selectedComponent.teeArmLengths?.inlet || 156}
                   onChange={(e) => handleArmLengthChange('inlet', Number(e.target.value))}
                   className="w-full bg-gray-700 text-white px-3 py-2 rounded"
                   min="50"
@@ -1175,7 +697,7 @@ export const PropertiesPanel: React.FC = () => {
                 <label className="text-gray-400 text-xs block mb-1">Ausgang (B - rechts)</label>
                 <input
                   type="number"
-                  value={selectedComponent.teeArmLengths?.outlet || selectedComponent.armLength || 200}
+                  value={selectedComponent.teeArmLengths?.outlet || 156}
                   onChange={(e) => handleArmLengthChange('outlet', Number(e.target.value))}
                   className="w-full bg-gray-700 text-white px-3 py-2 rounded"
                   min="50"
@@ -1187,7 +709,7 @@ export const PropertiesPanel: React.FC = () => {
                 <label className="text-gray-400 text-xs block mb-1">Abzweigung (C - oben)</label>
                 <input
                   type="number"
-                  value={selectedComponent.teeArmLengths?.branch || selectedComponent.armLength || 200}
+                  value={selectedComponent.teeArmLengths?.branch || 177}
                   onChange={(e) => handleArmLengthChange('branch', Number(e.target.value))}
                   className="w-full bg-gray-700 text-white px-3 py-2 rounded"
                   min="50"
@@ -1199,123 +721,113 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
-        {(selectedComponent.type === 'elbow' ||
-          selectedComponent.type === 'frk_equal' ||
-          selectedComponent.type === 'frk_unequal') && (
-          <>
-            <div>
-              <label className="text-gray-300 text-sm block mb-2">
-                Winkel (Grad)
-              </label>
+        {/* Abzweigwinkel-Slider für T-Stück */}
+        {selectedComponent.type === 'tee' && (
+          <div>
+            <label className="text-gray-300 text-sm block mb-1">
+              Abzweigwinkel
+            </label>
+            <div className="flex items-center gap-3">
               <input
-                type="number"
-                value={selectedComponent.angle || 90}
-                onChange={(e) => handleElbowAngleChange(Number(e.target.value))}
-                className="w-full bg-gray-700 text-white px-3 py-2 rounded"
+                type="range"
                 min="15"
-                max="180"
-                step="15"
+                max="75"
+                step="1"
+                value={selectedComponent.branchAngle || 45}
+                onChange={(e) => updateComponent(selectedComponent.id, { branchAngle: Number(e.target.value) })}
+                className="flex-1"
+                style={{ accentColor: '#0077C8' }}
               />
-            </div>
-            <div>
-              <label className="text-gray-300 text-sm block mb-2">
-                Schenkellängen (mm)
-              </label>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-gray-400 text-xs block mb-1">Eingang (A - unten)</label>
-                  <input
-                    type="number"
-                    value={selectedComponent.elbowArmLengths?.inlet || (selectedComponent.dn / 2) * 3}
-                    onChange={(e) => handleElbowArmLengthChange('inlet', Number(e.target.value))}
-                    className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                    min="50"
-                    max="1000"
-                    step="50"
-                  />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-xs block mb-1">Ausgang (B - gedreht)</label>
-                  <input
-                    type="number"
-                    value={selectedComponent.elbowArmLengths?.outlet || (selectedComponent.dn / 2) * 3}
-                    onChange={(e) => handleElbowArmLengthChange('outlet', Number(e.target.value))}
-                    className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-                    min="50"
-                    max="1000"
-                    step="50"
-                  />
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div>
-          <label className="text-gray-300 text-sm block mb-2">Position</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['x', 'y', 'z'] as const).map((axis) => (
-              <div key={axis}>
-                <label className="text-gray-400 text-xs">{axis.toUpperCase()}</label>
+              <div className="flex items-center gap-1">
                 <input
                   type="number"
-                  value={selectedComponent.position[axis].toFixed(2)}
-                  onChange={(e) =>
-                    handlePositionChange(axis, Number(e.target.value))
-                  }
-                  className="w-full bg-gray-700 text-white px-2 py-1 rounded text-sm"
-                  step="0.1"
+                  value={selectedComponent.branchAngle || 45}
+                  onChange={(e) => {
+                    const val = Math.min(75, Math.max(15, Number(e.target.value)))
+                    updateComponent(selectedComponent.id, { branchAngle: val })
+                  }}
+                  className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-sm text-center"
+                  min="15"
+                  max="75"
                 />
+                <span className="text-gray-400 text-sm">°</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-gray-300 text-sm">
-              Rotation (Grad)
-            </label>
-            {rememberedRotationSelection !== null && (
-              <button
-                onClick={handleClearRotationSelection}
-                className="text-xs text-blue-400 hover:text-blue-300 underline"
-              >
-                Auswahl aufheben
-              </button>
-            )}
-          </div>
-          {rememberedRotationSelection !== null && (
-            <div className="mb-2 px-2 py-1 bg-blue-900 bg-opacity-30 border border-blue-500 rounded text-xs text-blue-300">
-              ℹ️ Auswahl gemerkt ({rememberedRotationSelection.length} Komponenten)
             </div>
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            {(['x', 'y', 'z'] as const).map((axis) => {
-              // Normalize rotation to 0-360 range for display
-              let degrees = (selectedComponent.rotation[axis] * 180) / Math.PI
-              degrees = degrees % 360
-              if (degrees < 0) degrees += 360
-
-              return (
-                <div key={axis}>
-                  <label className="text-gray-400 text-xs">{axis.toUpperCase()}</label>
-                  <input
-                    type="number"
-                    value={Math.round(degrees)}
-                    onChange={(e) =>
-                      handleRotationChange(axis, Number(e.target.value))
-                    }
-                    className="w-full bg-gray-700 text-white px-2 py-1 rounded text-sm"
-                    step="15"
-                    min="0"
-                    max="360"
-                  />
-                </div>
-              )
-            })}
+            <p className="text-gray-500 text-xs mt-1">
+              Winkel der Abzweigung zur Hauptleitung (45° = Standard)
+            </p>
           </div>
-        </div>
+        )}
+
+
+        {/* Rotation — one slider per connected opening */}
+        {(() => {
+          // Only show if component has openings (CPs)
+          if (selectedComponent.connectionPoints.length === 0) return null
+
+          const cpTypeNames: Record<string, string> = {
+            inlet: 'Eingang',
+            outlet: 'Ausgang',
+            branch: 'Abzweigung',
+            branch2: 'Abzweigung 2',
+            branch3: 'Abzweigung 3',
+          }
+
+          // Show one slider per connected CP
+          const connectedCPs = selectedComponent.connectionPoints.filter(
+            (cp: ConnectionPoint) => cp.connectedTo !== null
+          )
+
+          if (connectedCPs.length === 0) return null
+
+          return (
+            <div>
+              <label className="text-gray-300 text-sm block mb-2">Rotation</label>
+              <div className="space-y-3">
+                {connectedCPs.map((cp: ConnectionPoint) => {
+                  const sliderValue = cpRotations[cp.id] || 0
+
+                  return (
+                    <div key={cp.id}>
+                      <label className="text-gray-400 text-xs block mb-1">
+                        Drehung an {cp.label} ({cpTypeNames[cp.type] || cp.type})
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 text-xs">L</span>
+                        <input
+                          type="range"
+                          min="-180"
+                          max="180"
+                          step="5"
+                          value={sliderValue}
+                          onChange={(e) => handleCPRotation(cp.id, Number(e.target.value))}
+                          className="flex-1"
+                          style={{ accentColor: '#0077C8' }}
+                        />
+                        <span className="text-gray-500 text-xs">R</span>
+                        <input
+                          type="number"
+                          value={sliderValue}
+                          onChange={(e) => handleCPRotation(cp.id, Number(e.target.value))}
+                          className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-sm text-center"
+                          step="5"
+                          min="-180"
+                          max="180"
+                        />
+                        <span className="text-gray-400 text-sm">°</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600 text-[10px] mt-0.5 px-4">
+                        <span>-180°</span>
+                        <span>0°</span>
+                        <span>+180°</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Connection Points */}
         <div>
@@ -1342,7 +854,10 @@ export const PropertiesPanel: React.FC = () => {
                     <div className="text-xs text-gray-400 mb-1">Verbindungsmethode:</div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleConnectionMethodChange(cp.id, 'welded')}
+                        onClick={() => {
+                          handleConnectionMethodChange(cp.id, 'welded')
+                          setExpandedConnectionCP(null)
+                        }}
                         className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
                           cp.connectionMethod === 'welded'
                             ? 'bg-blue-600 text-white font-semibold'
@@ -1352,16 +867,32 @@ export const PropertiesPanel: React.FC = () => {
                         geschweißt
                       </button>
                       <button
-                        onClick={() => handleConnectionMethodChange(cp.id, 'flanged')}
+                        onClick={() => setExpandedConnectionCP(expandedConnectionCP === cp.id ? null : cp.id)}
                         className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
                           cp.connectionMethod === 'flanged'
                             ? 'bg-blue-600 text-white font-semibold'
                             : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
                         }`}
                       >
-                        geflanscht
+                        Verbindung wählen
                       </button>
                     </div>
+                    {expandedConnectionCP === cp.id && (
+                      <div className="mt-2 space-y-1">
+                        {connectionTemplates.map((ct) => (
+                          <button
+                            key={ct.type}
+                            onClick={() => {
+                              handleConnectionMethodChange(cp.id, 'flanged')
+                              setExpandedConnectionCP(null)
+                            }}
+                            className="w-full text-left px-2 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-blue-600 hover:text-white transition-colors"
+                          >
+                            {ct.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-xs text-gray-500 italic">Nicht verbunden</div>
@@ -1397,19 +928,6 @@ export const PropertiesPanel: React.FC = () => {
         />
       )}
 
-      {/* Rotation Dialog */}
-      {rotationDialog && (
-        <RotationDialog
-          axis={rotationDialog.axis}
-          oldValue={rotationDialog.oldValue}
-          newValue={rotationDialog.newValue}
-          connectedComponents={rotationDialog.connectedComponents}
-          initialSelectedComponents={rememberedRotationSelection || undefined}
-          onConfirm={rotationDialog.onConfirm}
-          onCancel={() => setRotationDialog(null)}
-          onRemember={handleRememberRotationSelection}
-        />
-      )}
     </div>
   )
 }

@@ -20,9 +20,8 @@ export const GlobalChangeDialog: React.FC<GlobalChangeDialogProps> = ({
     if (type === 'material') {
       const materialNames: Record<string, string> = {
         steel: 'Stahl',
-        stainless: 'Edelstahl',
-        copper: 'Kupfer',
-        pvc: 'PVC',
+        stainless_v2a: 'V2A Edelstahl (1.4301)',
+        stainless_v4a: 'V4A Edelstahl (1.4401)',
       }
       return materialNames[value as string] || value
     }

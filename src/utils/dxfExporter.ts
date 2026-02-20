@@ -1,19 +1,10 @@
 import { PipeComponent } from '../types'
+import { downloadText } from './downloadHelper'
 
 // Simplified DXF export - generates basic DXF format for AutoCAD
 export const exportToDXF = (components: PipeComponent[], projectName: string) => {
   const dxfContent = generateDXF(components)
-
-  // Create blob and download
-  const blob = new Blob([dxfContent], { type: 'application/dxf' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${projectName}_${Date.now()}.dxf`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  downloadText(dxfContent, `${projectName}_${Date.now()}.dxf`, 'application/dxf')
 }
 
 const generateDXF = (components: PipeComponent[]): string => {
@@ -265,13 +256,5 @@ export const exportToJSON = (components: PipeComponent[], projectName: string) =
   }
 
   const json = JSON.stringify(projectData, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${projectName}_${Date.now()}.json`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  downloadText(json, `${projectName}_${Date.now()}.json`, 'application/json')
 }

@@ -35,6 +35,18 @@ export const CADModel: React.FC<CADModelProps> = ({
   positionOffset = [0, 0, 0],
 }) => {
   const selectComponent = useConfiguratorStore((state) => state.selectComponent)
+  const collisionWarnings = useConfiguratorStore((state) => state.collisionWarnings)
+
+  // Determine collision state for this component
+  const collisionType = useMemo((): 'warning' | 'blocked' | null => {
+    for (const w of collisionWarnings) {
+      if ((w.id1 === id || w.id2 === id) && w.type === 'blocked') return 'blocked'
+    }
+    for (const w of collisionWarnings) {
+      if ((w.id1 === id || w.id2 === id) && w.type === 'warning') return 'warning'
+    }
+    return null
+  }, [collisionWarnings, id])
 
   // Load the model - let errors propagate to ErrorBoundary in CADModelWrapper
   // and let loading Promises propagate to Suspense for fallback rendering
@@ -64,27 +76,34 @@ export const CADModel: React.FC<CADModelProps> = ({
     const clone = scene.clone(true)
     const baseMat = useMaterialCacheStore.getState().baseMaterial
 
-    // Apply cloned GLB material with color override
+    // Apply material with color override
     clone.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        if (baseMat) {
-          const matClone = baseMat.clone()
-          matClone.color.set(getMaterialColor(material, selected))
-          matClone.side = THREE.DoubleSide
-          child.material = matClone
-        } else {
-          child.material = new THREE.MeshStandardMaterial({
-            color: getMaterialColor(material, selected),
-            side: THREE.DoubleSide,
-          })
+        // Ensure geometry has normals for proper lighting
+        if (child.geometry && !child.geometry.attributes.normal) {
+          child.geometry.computeVertexNormals()
         }
+
+        const matClone = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial()
+        matClone.color.set(getMaterialColor(material, selected, collisionType))
+        matClone.metalness = 0.4
+        matClone.roughness = 0.35
+        matClone.side = THREE.DoubleSide
+        // Clear geometry-specific texture maps that don't transfer between models
+        matClone.normalMap = null
+        matClone.roughnessMap = null
+        matClone.metalnessMap = null
+        matClone.aoMap = null
+        matClone.needsUpdate = true
+        child.material = matClone
+
         child.castShadow = true
         child.receiveShadow = true
       }
     })
 
     return clone
-  }, [scene, material, selected])
+  }, [scene, material, selected, collisionType])
 
   // Update material color when selection or material type changes
   useEffect(() => {
@@ -92,10 +111,10 @@ export const CADModel: React.FC<CADModelProps> = ({
 
     clonedScene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-        child.material.color.set(getMaterialColor(material, selected))
+        child.material.color.set(getMaterialColor(material, selected, collisionType))
       }
     })
-  }, [clonedScene, material, selected])
+  }, [clonedScene, material, selected, collisionType])
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
@@ -106,6 +125,9 @@ export const CADModel: React.FC<CADModelProps> = ({
   if (!clonedScene) {
     return null
   }
+
+  // DEBUG: verify transform
+  console.log(`[CADModel ${id}] scale=${scale.toFixed(6)} rotOff=[${rotationOffset.map((v: number) => v.toFixed(2)).join(",")}]`)
 
   // Calculate non-uniform scale: apply lengthScale to the appropriate axis
   // The scale array is [X, Y, Z] in model coordinates (before rotation)

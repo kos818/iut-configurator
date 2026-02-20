@@ -162,7 +162,12 @@ export const QuickAddMenu: React.FC<QuickAddMenuProps> = ({
                 key={group}
                 onClick={(e) => {
                   e.stopPropagation()
-                  setSelectedGroup(group)
+                  const groupTemplates = componentTemplates.filter(t => t.group === group)
+                  if (groupTemplates.length === 1) {
+                    onSelect(groupTemplates[0])
+                  } else {
+                    setSelectedGroup(group)
+                  }
                 }}
                 className="w-full text-left px-2 py-2 hover:bg-blue-50 transition-colors border-b border-gray-200 last:border-b-0 flex items-center justify-between"
               >

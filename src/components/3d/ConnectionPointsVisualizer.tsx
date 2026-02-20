@@ -32,16 +32,16 @@ export const ConnectionPointsVisualizer: React.FC = () => {
           // - Green: available for connection
           // - Blue: connected
           // - Yellow: selected component's connection point
-          let color = '#00ff00' // green
+          let color = '#004B87' // IUT dark blue
           let size = 0.03
           let emissiveIntensity = 0.5
 
           if (isDialogSelected) {
-            color = '#00ffff' // cyan - selected in dialog
+            color = '#0077C8' // IUT primary blue - selected in dialog
             size = 0.06 // extra large
             emissiveIntensity = 1.5 // very bright
           } else if (isDialogSelectable) {
-            color = '#ff00ff' // magenta - selectable in dialog
+            color = '#0077C8' // IUT primary blue - selectable in dialog
             size = 0.05 // larger
             emissiveIntensity = 1.2 // brighter
           } else if (isSnapTarget) {
@@ -49,9 +49,9 @@ export const ConnectionPointsVisualizer: React.FC = () => {
             size = 0.05 // larger
             emissiveIntensity = 1.0 // brighter
           } else if (isConnected) {
-            color = '#0088ff' // blue
+            color = '#002B50' // IUT darkest blue
           } else if (isSelected) {
-            color = '#ffff00' // yellow
+            color = '#0077C8' // IUT primary blue
           }
 
           return (

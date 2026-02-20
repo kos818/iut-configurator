@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { Settings } from 'lucide-react'
-import { DNValue } from '../../types'
+import { DNValue, PNValue } from '../../types'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 
 interface ProjectSettingsDialogProps {
-  onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultWallThickness: number) => void
+  onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultPN: PNValue, defaultWallThickness: number) => void
 }
 
 export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
@@ -12,10 +12,14 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
 }) => {
   const [selectedMaterial, setSelectedMaterial] = useState<string>('steel')
   const [selectedDN, setSelectedDN] = useState<DNValue>(50)
+  const [selectedPN, setSelectedPN] = useState<PNValue>(16)
   const [selectedWallThickness, setSelectedWallThickness] = useState<number>(3)
 
   // Get all available DNs from the first template (they should be consistent)
   const availableDNs = componentTemplates[0]?.availableDNs || [20, 25, 32, 40, 50, 65, 80, 100, 125, 150]
+
+  // Available PN values
+  const availablePNs: PNValue[] = [6, 10, 16, 25, 40]
 
   // Available wall thicknesses (common standard values)
   const availableWallThicknesses = [2, 2.5, 3, 4, 5, 6]
@@ -23,13 +27,12 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
   // Material names for display
   const materialNames: Record<string, string> = {
     steel: 'Stahl',
-    stainless: 'Edelstahl',
-    copper: 'Kupfer',
-    pvc: 'PVC',
+    stainless_v2a: 'V2A Edelstahl (1.4301 / A304L)',
+    stainless_v4a: 'V4A Edelstahl (1.4401 / A316L)',
   }
 
   const handleConfirm = () => {
-    onConfirm(selectedMaterial, selectedDN, selectedWallThickness)
+    onConfirm(selectedMaterial, selectedDN, selectedPN, selectedWallThickness)
   }
 
   return (
@@ -87,6 +90,27 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* PN Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Standard-Nenndruck (PN)
+            </label>
+            <select
+              value={selectedPN}
+              onChange={(e) => setSelectedPN(Number(e.target.value) as PNValue)}
+              className="w-full bg-white border-2 border-gray-200 text-gray-900 px-4 py-3 rounded-lg focus:outline-none focus:border-blue-600 transition-colors"
+            >
+              {availablePNs.map((pn) => (
+                <option key={pn} value={pn}>
+                  PN{pn} ({pn} bar)
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">
+              Der Nenndruck gibt die maximale Druckbelastung bei 20°C an
+            </p>
           </div>
 
           {/* Wall Thickness Selection */}

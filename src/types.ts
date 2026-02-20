@@ -4,34 +4,17 @@ export type PipeComponentType =
   | 'straight'
   | 'elbow'
   | 'tee'
-  | 'cross'
-  | 'valve'
-  | 'check_valve'
-  | 'flange'
-  | 'reducer'
-  | 'cap'
-  | 'f_piece' // F-Stück - Rohr mit Flansch auf einer Seite
-  | 'ff_piece' // FF-Stück - Rohr mit Flanschen auf beiden Seiten
-  | 'ff_piece_one_branch' // F1-Stück ein Abgang
-  | 'ff_piece_two_branches' // FF-Stück zwei Abgänge
-  | 'ffq_equal' // FFQ-Stück gleichschenklig
-  | 'ffq_unequal' // FFQ-Stück ungleichschenklig
-  | 'frk_equal' // FRK-Stück gleichschenklig
-  | 'frk_unequal' // FRK-Stück ungleichschenklig
-  | 'frr_concentric' // FRR-Stück konzentrisch
-  | 'frr_eccentric' // FRR-Stück exzentrisch
-  | 'ffft_symmetrical' // FFFT-Stück symmetrisch
-  | 'ffft_asymmetrical' // FFFT-Stück asymmetrisch
-  | 'fffor_one_branch' // FFFOR-Stück ein Abgang
-  | 'fffrk_one_branch' // FFFRK-Stück ein Abgang
-  | 'wye' // Hosenrohr gerade
-  | 'wye_angled' // Hosenrohr abgewinkelt
-  | 'union_straight' // Vereinigungsstück gerade
-  | 'union_angled' // Vereinigungsstück abgewinkelt
-export type MaterialType = 'steel' | 'stainless' | 'copper' | 'pvc'
+  | 'glatter_flansch'       // Glatter Flansch (Vorschweißflansch)
+  | 'losflansch'             // Losflansch
+  | 'vorschweissboerdel'     // Vorschweißbördel
+  | 'ffq_stueck'             // FFQ-Stück mit Losflansch
+export type MaterialType = 'steel' | 'stainless_v2a' | 'stainless_v4a'
 
 // DN (Diameter Nominal) values
 export type DNValue = 20 | 25 | 32 | 40 | 50 | 65 | 80 | 100 | 125 | 150
+
+// PN (Pressure Nominal) values in bar
+export type PNValue = 6 | 10 | 16 | 25 | 40
 
 // Connection method type
 export type ConnectionMethod = 'welded' | 'flanged'
@@ -85,6 +68,7 @@ export interface PipeComponent {
   position: Vector3
   rotation: Vector3
   dn: DNValue // Changed from diameter
+  pn: PNValue // Pressure Nominal in bar
   wallThickness?: number // in mm (wall thickness / Wandstärke)
   length?: number // in mm (for straight pipes)
   angle?: number // in degrees (for elbows)
@@ -124,6 +108,8 @@ export interface ComponentTemplate {
   description: string
   group: string // Component group for organization
   defaultDN: DNValue
+  defaultPN: PNValue
+  availablePNs: PNValue[]
   defaultWallThickness?: number // default wall thickness in mm
   availableWallThicknesses?: number[] // available wall thicknesses in mm
   defaultLength?: number

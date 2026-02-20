@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,16 +10,269 @@
   box-sizing: border-box;
 }
 
+:root {
+  --iut-primary: #0077C8;
+  --iut-dark: #004B87;
+  --iut-darker: #002B50;
+  --iut-light: #e8f4fc;
+  --iut-accent: #1a8cd8;
+  --iut-bg: #f0f4f8;
+  --iut-panel: #ffffff;
+  --iut-border: #d5d9e0;
+  --iut-text: #343a44;
+  --iut-text-light: #67768a;
+  --iut-success: #059669;
+  --iut-danger: #dc2626;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--iut-bg);
+  color: var(--iut-text);
 }
 
 #root {
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================
+   IUT Panel Styles
+   ============================ */
+@layer components {
+  .iut-panel {
+    @apply bg-white rounded-xl shadow-sm border border-steel-200;
+  }
+
+  .iut-panel-header {
+    @apply px-4 py-3 border-b border-steel-200 font-semibold text-steel-800 text-sm uppercase tracking-wide;
+  }
+
+  .iut-btn-primary {
+    @apply bg-iut-500 hover:bg-iut-600 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+
+  .iut-btn-secondary {
+    @apply bg-steel-100 hover:bg-steel-200 text-steel-700 font-medium px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  .iut-btn-danger {
+    @apply bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-medium px-4 py-2 rounded-lg transition-all duration-200 border border-red-200;
+  }
+
+  .iut-input {
+    @apply w-full bg-steel-50 border border-steel-200 text-steel-800 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-iut-400 focus:border-iut-400 transition-all;
+  }
+
+  .iut-label {
+    @apply text-steel-500 text-xs font-semibold uppercase tracking-wider block mb-1;
+  }
+
+  .iut-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+/* ============================
+   Scrollbar Styling
+   ============================ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b1b9c5;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8693a5;
+}
+
+/* ============================
+   Override dark-themed components
+   to match IUT light theme
+   ============================ */
+
+/* Panels that use bg-gray-800 → white panels */
+.bg-gray-800 {
+  background-color: var(--iut-panel) !important;
+  border: 1px solid var(--iut-border) !important;
+  border-radius: 0.75rem !important;
+}
+
+/* Text colors */
+.text-white {
+  color: var(--iut-text) !important;
+}
+
+.text-gray-300 {
+  color: var(--iut-text-light) !important;
+}
+
+.text-gray-400 {
+  color: #8693a5 !important;
+}
+
+.text-gray-500 {
+  color: #8693a5 !important;
+}
+
+/* Input fields */
+.bg-gray-700 {
+  background-color: var(--iut-bg) !important;
+  border: 1px solid var(--iut-border) !important;
+  color: var(--iut-text) !important;
+}
+
+.bg-gray-700:focus {
+  border-color: var(--iut-primary) !important;
+  box-shadow: 0 0 0 2px rgba(0, 119, 200, 0.15) !important;
+}
+
+/* Blue buttons → IUT blue */
+.bg-blue-600 {
+  background-color: var(--iut-primary) !important;
+}
+
+.bg-blue-600:hover,
+.hover\:bg-blue-700:hover {
+  background-color: var(--iut-dark) !important;
+}
+
+/* Blue gradient buttons */
+.from-blue-600 {
+  --tw-gradient-from: var(--iut-primary) !important;
+}
+
+.to-blue-700 {
+  --tw-gradient-to: var(--iut-dark) !important;
+}
+
+.hover\:from-blue-700:hover {
+  --tw-gradient-from: var(--iut-dark) !important;
+}
+
+.hover\:to-blue-800:hover {
+  --tw-gradient-to: var(--iut-darker) !important;
+}
+
+.text-blue-200,
+.text-blue-300 {
+  color: #c5e3f7 !important;
+}
+
+/* Green (price) → IUT success */
+.from-green-600 {
+  --tw-gradient-from: var(--iut-primary) !important;
+}
+
+.to-green-700 {
+  --tw-gradient-to: var(--iut-dark) !important;
+}
+
+.text-green-100 {
+  color: #c5e3f7 !important;
+}
+
+.text-green-300 {
+  color: var(--iut-success) !important;
+}
+
+.text-green-400 {
+  color: var(--iut-success) !important;
+}
+
+.bg-green-600 {
+  background-color: var(--iut-success) !important;
+}
+
+.hover\:bg-green-700:hover {
+  background-color: #047857 !important;
+}
+
+/* Red danger buttons */
+.bg-red-600 {
+  background-color: var(--iut-danger) !important;
+}
+
+.hover\:bg-red-700:hover {
+  background-color: #b91c1c !important;
+}
+
+/* Gray utility buttons */
+.bg-gray-600 {
+  background-color: var(--iut-bg) !important;
+  color: var(--iut-text) !important;
+  border: 1px solid var(--iut-border) !important;
+}
+
+.hover\:bg-gray-700:hover {
+  background-color: #d5d9e0 !important;
+}
+
+/* Connection point colors in panels */
+.border-blue-500 {
+  border-color: var(--iut-primary) !important;
+}
+
+.bg-blue-900 {
+  background-color: var(--iut-light) !important;
+}
+
+.text-blue-400 {
+  color: var(--iut-primary) !important;
+}
+
+.hover\:text-blue-300:hover {
+  color: var(--iut-accent) !important;
+}
+
+.border-gray-600 {
+  border-color: var(--iut-border) !important;
+}
+
+/* Dividers */
+.bg-gray-600 + .bg-gray-600 {
+  background-color: var(--iut-border) !important;
+}
+
+.w-px.bg-gray-600 {
+  background-color: var(--iut-border) !important;
+}
+
+/* Validation badges */
+.text-orange-400 {
+  color: #ea580c !important;
+}
+
+/* ============================
+   Header (handled separately in App.tsx)
+   ============================ */
+.iut-header {
+  background: linear-gradient(135deg, #002B50 0%, #004B87 50%, #0077C8 100%);
+  border-bottom: 3px solid #1a8cd8;
+}
+
+.iut-header h1,
+.iut-header p,
+.iut-header .text-white,
+.iut-header .text-gray-400 {
+  color: #ffffff !important;
+}
+
+/* ============================
+   3D Viewport
+   ============================ */
+main.flex-1 {
+  border: 2px solid var(--iut-border) !important;
+  border-radius: 0.75rem !important;
   overflow: hidden;
 }

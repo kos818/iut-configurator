@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { Vector3, Euler } from 'three'
-import { PipeComponent, ComponentTemplate, MaterialType } from '../types'
-import { materialMultipliers, componentTemplates } from '../data/componentTemplates'
+import { PipeComponent, ComponentTemplate, MaterialType, PNValue } from '../types'
+import { materialMultipliers, pnMultipliers, componentTemplates } from '../data/componentTemplates'
 import { generateConnectionPoints } from '../utils/connectionHelpers'
 
 // Reposition connected components after a component's geometry changed.
@@ -72,8 +72,15 @@ const calculateComponentPrice = (component: Partial<PipeComponent>, template?: C
   const wallThicknessPrice = (tmpl.pricePerMMWallThickness && component.wallThickness)
     ? tmpl.pricePerMMWallThickness * component.wallThickness : 0
   const materialMultiplier = materialMultipliers[component.material || 'steel'] || 1.0
+  const pnMultiplier = pnMultipliers[component.pn || 16] || 1.0
 
-  return (basePrice + lengthPrice + wallThicknessPrice) * materialMultiplier
+  return (basePrice + lengthPrice + wallThicknessPrice) * materialMultiplier * pnMultiplier
+}
+
+export interface CollisionWarning {
+  id1: string
+  id2: string
+  type: 'warning' | 'blocked'
 }
 
 interface ConfiguratorState {
@@ -87,10 +94,12 @@ interface ConfiguratorState {
   quickAddConnectionPointId: string | null // Connection point ID for quick add
   dialogSelectableConnectionPoints: string[] // Connection point IDs that can be selected in the dialog
   dialogSelectedConnectionPoint: string | null // Currently selected connection point in the dialog
+  collisionWarnings: CollisionWarning[]
   projectSettings: {
     isConfigured: boolean
     defaultMaterial: string
     defaultDN: number
+    defaultPN: number
     defaultWallThickness: number
   }
 
@@ -98,6 +107,7 @@ interface ConfiguratorState {
   addComponent: (template: ComponentTemplate, position?: Vector3) => string
   removeComponent: (id: string) => void
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
+  batchUpdateComponents: (updates: Array<{id: string, changes: Partial<PipeComponent>}>) => void
   updateAllComponents: (updates: Partial<PipeComponent>) => void
   selectComponent: (id: string | null) => void
   setSnapTargets: (targets: string[]) => void
@@ -105,7 +115,8 @@ interface ConfiguratorState {
   setQuickAddConnectionPoint: (connectionPointId: string | null) => void
   setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => void
   setDialogSelectedConnectionPoint: (connectionPointId: string | null) => void
-  setProjectSettings: (material: string, dn: number, wallThickness: number) => void
+  setCollisionWarnings: (warnings: CollisionWarning[]) => void
+  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -126,10 +137,12 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   quickAddConnectionPointId: null,
   dialogSelectableConnectionPoints: [],
   dialogSelectedConnectionPoint: null,
+  collisionWarnings: [],
   projectSettings: {
     isConfigured: false,
     defaultMaterial: 'steel',
     defaultDN: 50,
+    defaultPN: 16,
     defaultWallThickness: 3,
   },
 
@@ -139,6 +152,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     // Use project defaults if configured
     const material = projectSettings.isConfigured ? (projectSettings.defaultMaterial as MaterialType) : template.material
     const dn = projectSettings.isConfigured ? projectSettings.defaultDN as any : template.defaultDN
+    const pn = projectSettings.isConfigured ? projectSettings.defaultPN as PNValue : template.defaultPN
     const wallThickness = projectSettings.isConfigured ? projectSettings.defaultWallThickness : template.defaultWallThickness
 
     const newComponent: PipeComponent = {
@@ -147,6 +161,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       position: position || new Vector3(0, 0, 0),
       rotation: new Vector3(0, 0, 0),
       dn,
+      pn,
       wallThickness,
       length: template.defaultLength,
       angle: template.defaultAngle,
@@ -166,7 +181,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         type: template.type,
         length: template.defaultLength,
         wallThickness: template.defaultWallThickness,
-        material
+        material,
+        pn
       }, template),
       material,
       connectionPoints: [], // will be generated below
@@ -232,8 +248,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     let newComponents = get().components.map((c) => {
       if (c.id === id) {
         const updated = { ...c, ...updates }
-        // Recalculate price if material, dn, length, or wallThickness changed
-        if (updates.material || updates.dn || updates.length || updates.wallThickness) {
+        // Recalculate price if material, dn, pn, length, or wallThickness changed
+        if (updates.material || updates.dn || updates.pn || updates.length || updates.wallThickness) {
           updated.price = calculateComponentPrice(updated)
         }
         // Regenerate connection points if any geometric properties changed
@@ -271,6 +287,29 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     get().calculateTotalPrice()
   },
 
+  batchUpdateComponents: (updates: Array<{id: string, changes: Partial<PipeComponent>}>) => {
+    let newComponents = [...get().components]
+    for (const { id, changes } of updates) {
+      newComponents = newComponents.map(c => {
+        if (c.id === id) {
+          const updated = { ...c, ...changes }
+          if (changes.material || changes.dn || changes.pn || changes.length || changes.wallThickness) {
+            updated.price = calculateComponentPrice(updated)
+          }
+          return updated
+        }
+        return c
+      })
+    }
+
+    set((state) => ({
+      components: newComponents,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
+    }))
+    get().calculateTotalPrice()
+  },
+
   selectComponent: (id: string | null) => {
     set({ selectedComponent: id })
   },
@@ -295,12 +334,17 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     set({ dialogSelectedConnectionPoint: connectionPointId })
   },
 
-  setProjectSettings: (material: string, dn: number, wallThickness: number) => {
+  setCollisionWarnings: (warnings: CollisionWarning[]) => {
+    set({ collisionWarnings: warnings })
+  },
+
+  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number) => {
     set({
       projectSettings: {
         isConfigured: true,
         defaultMaterial: material,
         defaultDN: dn,
+        defaultPN: pn,
         defaultWallThickness: wallThickness,
       },
     })
@@ -309,8 +353,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   updateAllComponents: (updates: Partial<PipeComponent>) => {
     const newComponents = get().components.map((c) => {
       const updated = { ...c, ...updates }
-      // Recalculate price if material, dn, length, or wallThickness changed
-      if (updates.material || updates.dn || updates.length || updates.wallThickness) {
+      // Recalculate price if material, dn, pn, length, or wallThickness changed
+      if (updates.material || updates.dn || updates.pn || updates.length || updates.wallThickness) {
         updated.price = calculateComponentPrice(updated)
       }
       // Regenerate connection points if dn, length, teeArmLengths, elbowArmLengths, or angle changed

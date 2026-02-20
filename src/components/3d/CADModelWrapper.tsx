@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react'
 import { CADModel } from './CADModel'
 import { getModelConfig, calculateScaleFactor } from '../../data/modelRegistry'
-import { PipeComponentType, DNValue, DN_TO_MM } from '../../types'
+import { PipeComponentType, DNValue } from '../../types'
 
 interface CADModelWrapperProps {
   id: string
@@ -56,13 +56,16 @@ export const CADModelWrapper: React.FC<CADModelWrapperProps> = ({
   }
 
   // Calculate scale factor based on DN and model scale adjustment
-  const targetDiameter = DN_TO_MM[dn]
+  // Use DN value directly (not DN_TO_MM which is outer diameter and causes 14.3% oversize)
+  const targetDiameter = dn
   const scaleFactor = calculateScaleFactor(targetDiameter, modelConfig.referenceDN, modelConfig.modelScale)
 
   // Calculate length scale factor if model has a defined length
+  // Compensate for the DN ratio so the length axis only converts mm→meters
   let lengthScaleFactor = 1
   if (modelConfig.modelLength && length) {
-    lengthScaleFactor = length / modelConfig.modelLength
+    const dnRatio = targetDiameter / modelConfig.referenceDN
+    lengthScaleFactor = (length / modelConfig.modelLength) / dnRatio
   }
 
   // Calculate position offset scaled for the current length
@@ -70,11 +73,9 @@ export const CADModelWrapper: React.FC<CADModelWrapperProps> = ({
   let scaledPositionOffset = modelConfig.positionOffset
   if (modelConfig.positionOffset && modelConfig.modelLength && length) {
     const lengthRatio = length / modelConfig.modelLength
-    scaledPositionOffset = [
-      modelConfig.positionOffset[0],
-      modelConfig.positionOffset[1],
-      modelConfig.positionOffset[2] * lengthRatio, // Scale Z offset (length direction)
-    ]
+    const axis = modelConfig.lengthAxis ?? 2
+    scaledPositionOffset = [...modelConfig.positionOffset] as [number, number, number]
+    scaledPositionOffset[axis] = modelConfig.positionOffset[axis] * lengthRatio
   }
 
   return (
