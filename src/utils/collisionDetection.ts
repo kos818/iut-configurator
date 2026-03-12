@@ -1,5 +1,6 @@
 import { Vector3, Euler } from 'three'
 import { PipeComponent } from '../types'
+import { componentTemplates } from '../data/componentTemplates'
 
 export interface Capsule {
   start: Vector3
@@ -8,9 +9,26 @@ export interface Capsule {
   componentId: string
 }
 
+export interface CollisionWarningResult {
+  id1: string
+  id2: string
+  type: 'warning' | 'blocked'
+  name1: string
+  name2: string
+  gap: number
+  description: string
+}
+
 export interface CollisionResult {
-  warnings: Array<{ id1: string; id2: string; type: 'warning' | 'blocked' }>
+  warnings: CollisionWarningResult[]
   hasBlocked: boolean
+}
+
+/** Human-readable label for a component, e.g. "Rohrbogen 90° (DN100)" */
+function getComponentLabel(comp: PipeComponent): string {
+  const tmpl = componentTemplates.find(t => t.type === comp.type)
+  const name = tmpl?.name || comp.type
+  return `${name} (DN${comp.dn})`
 }
 
 /** Transform a local point to world space using component position + rotation */
@@ -294,11 +312,25 @@ export function checkCollisions(components: PipeComponent[]): CollisionResult {
 
       if (minDist < 0) {
         // Overlap: blocked
-        warnings.push({ id1: a.id, id2: b.id, type: 'blocked' })
+        const name1 = getComponentLabel(a)
+        const name2 = getComponentLabel(b)
+        const gapMM = Math.round(minDist * 1000 * 10) / 10 // meters→mm, 1 decimal
+        warnings.push({
+          id1: a.id, id2: b.id, type: 'blocked',
+          name1, name2, gap: gapMM,
+          description: `Überlappung von ${Math.abs(gapMM).toFixed(1)}mm zwischen ${name1} und ${name2}`,
+        })
         hasBlocked = true
       } else if (minDist < maxRadius * 2) {
         // Close proximity: warning
-        warnings.push({ id1: a.id, id2: b.id, type: 'warning' })
+        const name1 = getComponentLabel(a)
+        const name2 = getComponentLabel(b)
+        const gapMM = Math.round(minDist * 1000 * 10) / 10
+        warnings.push({
+          id1: a.id, id2: b.id, type: 'warning',
+          name1, name2, gap: gapMM,
+          description: `${name1} und ${name2} sind nur ${gapMM.toFixed(1)}mm voneinander entfernt`,
+        })
       }
     }
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Vector3, Euler, Quaternion } from 'three'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, X, Info } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 import { ConnectionMethod, ConnectionPoint, DNValue, PNValue } from '../../types'
@@ -19,6 +19,10 @@ export const PropertiesPanel: React.FC = () => {
   const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
   const collisionWarnings = useConfiguratorStore((state) => state.collisionWarnings)
   const setCollisionWarnings = useConfiguratorStore((state) => state.setCollisionWarnings)
+  const collisionWarningsEnabled = useConfiguratorStore((state) => state.collisionWarningsEnabled)
+  const setCollisionWarningsEnabled = useConfiguratorStore((state) => state.setCollisionWarningsEnabled)
+  const dismissedCollisions = useConfiguratorStore((state) => state.dismissedCollisions)
+  const dismissCollision = useConfiguratorStore((state) => state.dismissCollision)
   const undo = useConfiguratorStore((state) => state.undo)
 
   // State for global change dialog
@@ -52,6 +56,12 @@ export const PropertiesPanel: React.FC = () => {
 
   // Global collision check — runs whenever components change
   useEffect(() => {
+    // Skip if collision warnings are disabled
+    if (!collisionWarningsEnabled) {
+      if (collisionWarnings.length > 0) setCollisionWarnings([])
+      return
+    }
+
     console.log(`[PropertiesPanel] Collision check triggered, ${components.length} components`)
 
     // Skip entire collision check when suppress flag is set (atomic add just happened)
@@ -80,9 +90,11 @@ export const PropertiesPanel: React.FC = () => {
     setCollisionDebug(`${components.length} Komp., ${result.warnings.length} Warnungen (blocked=${result.hasBlocked})`)
     console.log(`[PropertiesPanel] Collision result: ${result.warnings.length} warnings, hasBlocked=${result.hasBlocked}`)
 
-    // Compare to avoid unnecessary re-renders
-    const oldKey = collisionWarnings.map(w => `${w.id1}:${w.id2}:${w.type}`).sort().join(',')
-    const newKey = result.warnings.map(w => `${w.id1}:${w.id2}:${w.type}`).sort().join(',')
+    // Compare to avoid unnecessary re-renders (include description to detect enrichment changes)
+    const warnKey = (w: { id1: string; id2: string; type: string; description?: string }) =>
+      `${w.id1}:${w.id2}:${w.type}:${w.description || ''}`
+    const oldKey = collisionWarnings.map(warnKey).sort().join(',')
+    const newKey = result.warnings.map(warnKey).sort().join(',')
     if (oldKey !== newKey) {
       console.log(`[PropertiesPanel] Updating collision warnings: "${oldKey}" → "${newKey}"`)
       setCollisionWarnings(result.warnings)
@@ -103,31 +115,75 @@ export const PropertiesPanel: React.FC = () => {
     }
     prevBlockedKeysRef.current = currentBlockedKeys
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [components])
+  }, [components, collisionWarningsEnabled])
 
   // Available connection/flange types
   const connectionTemplates = componentTemplates.filter(t => t.group === 'connections')
 
   const selectedComponent = components.find((c) => c.id === selectedId)
 
+  // Filter out dismissed warnings
+  const visibleWarnings = collisionWarnings.filter(w => {
+    const pairKey = [w.id1, w.id2].sort().join(':')
+    return !dismissedCollisions.has(pairKey)
+  })
+
   // Collision banners helper (used in both views)
   const collisionBanners = (
     <>
-      {/* Warning banner (yellow) */}
-      {collisionWarnings.length > 0 && !collisionWarnings.some(w => w.type === 'blocked') && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-yellow-900 bg-opacity-80 text-yellow-200 border border-yellow-700">
-          <AlertTriangle size={16} className="flex-shrink-0" />
-          <span>Achtung: Komponenten in der Nähe</span>
+      {/* Disabled info banner */}
+      {!collisionWarningsEnabled && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm bg-gray-700 text-gray-300 border border-gray-600">
+          <Info size={16} className="flex-shrink-0" />
+          <span>Kollisionsprüfung deaktiviert</span>
+          <button
+            onClick={() => setCollisionWarningsEnabled(true)}
+            className="ml-auto text-blue-400 hover:text-blue-300 text-xs underline"
+          >
+            Aktivieren
+          </button>
         </div>
       )}
-      {/* Blocked banner (red) */}
-      {collisionWarnings.some(w => w.type === 'blocked') && !showCollisionDialog && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-red-900 bg-opacity-80 text-red-200 border border-red-700">
-          <AlertTriangle size={16} className="flex-shrink-0" />
-          <span>Kollision — Elemente überlappen sich!</span>
+
+      {/* Per-warning cards */}
+      {collisionWarningsEnabled && visibleWarnings.map(w => {
+        const pairKey = [w.id1, w.id2].sort().join(':')
+        const isBlocked = w.type === 'blocked'
+        return (
+          <div
+            key={pairKey}
+            className={`flex items-start gap-2 px-3 py-2 rounded mb-2 text-sm border ${
+              isBlocked
+                ? 'bg-red-900 bg-opacity-80 text-red-200 border-red-700'
+                : 'bg-yellow-900 bg-opacity-80 text-yellow-200 border-yellow-700'
+            }`}
+          >
+            <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
+            <span className="flex-1 text-xs">{w.description}</span>
+            <button
+              onClick={() => dismissCollision(pairKey)}
+              className="flex-shrink-0 p-0.5 rounded hover:bg-white hover:bg-opacity-10 transition-colors"
+              title="Warnung schließen"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )
+      })}
+
+      {/* Disable link at bottom of warnings */}
+      {collisionWarningsEnabled && visibleWarnings.length > 0 && (
+        <div className="mb-3">
+          <button
+            onClick={() => setCollisionWarningsEnabled(false)}
+            className="text-gray-400 hover:text-gray-300 text-[11px] underline"
+          >
+            Kollisionsprüfung deaktivieren
+          </button>
         </div>
       )}
-      {/* Confirmation Dialog */}
+
+      {/* Confirmation Dialog for NEW blocked collisions */}
       {showCollisionDialog && (
         <div className="mb-3 p-3 rounded border-2 border-red-600 bg-red-950 bg-opacity-95">
           <div className="flex items-center gap-2 mb-2">
@@ -539,59 +595,9 @@ export const PropertiesPanel: React.FC = () => {
     <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
       <h2 className="text-xl font-bold text-white mb-4">Eigenschaften</h2>
 
-      {/* Collision Warning Banner (yellow) */}
-      {collisionWarnings.length > 0 && !collisionWarnings.some(w => w.type === 'blocked') && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-yellow-900 bg-opacity-80 text-yellow-200 border border-yellow-700">
-          <AlertTriangle size={16} className="flex-shrink-0" />
-          <span>Achtung: Komponenten in der Nähe</span>
-        </div>
-      )}
-
-      {/* Collision Blocked Banner (red) */}
-      {collisionWarnings.some(w => w.type === 'blocked') && !showCollisionDialog && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded mb-3 text-sm font-medium bg-red-900 bg-opacity-80 text-red-200 border border-red-700">
-          <AlertTriangle size={16} className="flex-shrink-0" />
-          <span>Kollision — Elemente überlappen sich!</span>
-        </div>
-      )}
-
-      {/* Debug: collision status */}
+      {collisionBanners}
       {collisionDebug && (
         <div className="text-gray-500 text-[10px] mb-2 font-mono">[Debug] {collisionDebug}</div>
-      )}
-
-      {/* Collision Confirmation Dialog */}
-      {showCollisionDialog && (
-        <div className="mb-3 p-3 rounded border-2 border-red-600 bg-red-950 bg-opacity-95">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={18} className="text-red-400 flex-shrink-0" />
-            <span className="text-red-200 text-sm font-semibold">Kollision erkannt!</span>
-          </div>
-          <p className="text-red-300 text-xs mb-3">
-            Elemente überlappen sich. In der Realität wäre diese Konfiguration nicht umsetzbar. Möchten Sie trotzdem fortfahren?
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                // User accepts collision — close dialog, keep state
-                setShowCollisionDialog(false)
-              }}
-              className="flex-1 px-3 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-gray-500 transition-colors"
-            >
-              Beibehalten
-            </button>
-            <button
-              onClick={() => {
-                // User rejects collision — undo last action
-                setShowCollisionDialog(false)
-                undo()
-              }}
-              className="flex-1 px-3 py-1.5 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-500 transition-colors"
-            >
-              Rückgängig
-            </button>
-          </div>
-        </div>
       )}
 
       <div className="space-y-4">

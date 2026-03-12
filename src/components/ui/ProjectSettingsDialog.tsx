@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Settings } from 'lucide-react'
 import { DNValue, PNValue, ConnectionMethod } from '../../types'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
+import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 
 interface ProjectSettingsDialogProps {
   onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultPN: PNValue, defaultWallThickness: number, defaultConnectionMethod: ConnectionMethod) => void
@@ -15,6 +16,9 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
   const [selectedPN, setSelectedPN] = useState<PNValue>(16)
   const [selectedWallThickness, setSelectedWallThickness] = useState<number>(3)
   const [selectedConnectionMethod, setSelectedConnectionMethod] = useState<ConnectionMethod>('welded')
+
+  const collisionWarningsEnabled = useConfiguratorStore((state) => state.collisionWarningsEnabled)
+  const setCollisionWarningsEnabled = useConfiguratorStore((state) => state.setCollisionWarningsEnabled)
 
   // Get all available DNs from the first template (they should be consistent)
   const availableDNs = componentTemplates[0]?.availableDNs || [20, 25, 32, 40, 50, 65, 80, 100, 125, 150]
@@ -164,6 +168,24 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
             </div>
             <p className="text-xs text-gray-500 mt-2">
               Legt fest, ob neue Komponenten standardmäßig geschweißt oder geflancht verbunden werden
+            </p>
+          </div>
+
+          {/* Collision Check Toggle */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={collisionWarningsEnabled}
+                onChange={(e) => setCollisionWarningsEnabled(e.target.checked)}
+                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-semibold text-gray-700">
+                Kollisionsprüfung aktivieren
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 mt-2 ml-8">
+              Warnt bei überlappenden oder zu nahen Komponenten
             </p>
           </div>
 

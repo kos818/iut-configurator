@@ -81,6 +81,10 @@ export interface CollisionWarning {
   id1: string
   id2: string
   type: 'warning' | 'blocked'
+  name1: string        // e.g. "Gerades Rohr (DN50)"
+  name2: string        // e.g. "FFQ-Stück (DN50)"
+  gap: number          // distance in mm (negative = overlap)
+  description: string  // human-readable German explanation
 }
 
 interface ConfiguratorState {
@@ -95,6 +99,8 @@ interface ConfiguratorState {
   dialogSelectableConnectionPoints: string[] // Connection point IDs that can be selected in the dialog
   dialogSelectedConnectionPoint: string | null // Currently selected connection point in the dialog
   collisionWarnings: CollisionWarning[]
+  collisionWarningsEnabled: boolean
+  dismissedCollisions: Set<string>
   suppressNextCollisionDialog: boolean
   projectSettings: {
     isConfigured: boolean
@@ -127,6 +133,8 @@ interface ConfiguratorState {
   setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => void
   setDialogSelectedConnectionPoint: (connectionPointId: string | null) => void
   setCollisionWarnings: (warnings: CollisionWarning[]) => void
+  setCollisionWarningsEnabled: (enabled: boolean) => void
+  dismissCollision: (pairKey: string) => void
   setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number, connectionMethod: ConnectionMethod) => void
   calculateTotalPrice: () => void
   clearAll: () => void
@@ -149,6 +157,8 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   dialogSelectableConnectionPoints: [],
   dialogSelectedConnectionPoint: null,
   collisionWarnings: [],
+  collisionWarningsEnabled: true,
+  dismissedCollisions: new Set<string>(),
   suppressNextCollisionDialog: false,
   projectSettings: {
     isConfigured: false,
@@ -444,6 +454,21 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
 
   setCollisionWarnings: (warnings: CollisionWarning[]) => {
     set({ collisionWarnings: warnings })
+  },
+
+  setCollisionWarningsEnabled: (enabled: boolean) => {
+    if (!enabled) {
+      set({ collisionWarningsEnabled: false, collisionWarnings: [], dismissedCollisions: new Set<string>() })
+    } else {
+      set({ collisionWarningsEnabled: true })
+    }
+  },
+
+  dismissCollision: (pairKey: string) => {
+    const current = get().dismissedCollisions
+    const next = new Set(current)
+    next.add(pairKey)
+    set({ dismissedCollisions: next })
   },
 
   setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number, connectionMethod: ConnectionMethod) => {
