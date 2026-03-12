@@ -1,5 +1,6 @@
 import { PipeComponent } from '../types'
 import { validateDNConnection } from './connectionHelpers'
+import { getEffectivePipeBodyLength, getEffectiveArmLength, validateEffectiveLength } from './flangeUtils'
 
 /**
  * Validates all components in the configuration
@@ -32,6 +33,40 @@ export const validateConfiguration = (components: PipeComponent[]): ValidationIs
         type: 'warning',
         message: `${unconnectedCount} offene Verbindung${unconnectedCount > 1 ? 'en' : ''}`,
       })
+    }
+
+    // Check effective length when flanges are included
+    const flangesIncluded = component.flangesIncludedInLength ?? true
+    if (component.type === 'straight' && component.length) {
+      const effLength = getEffectivePipeBodyLength(
+        component.length, component.connectionPoints, component.dn, component.pn, flangesIncluded
+      )
+      const err = validateEffectiveLength(effLength, 'Rohr')
+      if (err) issues.push({ componentId: component.id, type: 'error', message: err })
+    }
+    if (component.type === 'elbow') {
+      const rawIn = component.elbowArmLengths?.inlet || 150
+      const rawOut = component.elbowArmLengths?.outlet || 150
+      const effIn = getEffectiveArmLength(rawIn, 'A', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+      const effOut = getEffectiveArmLength(rawOut, 'B', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+      const errIn = validateEffectiveLength(effIn, 'Bogen Arm A')
+      const errOut = validateEffectiveLength(effOut, 'Bogen Arm B')
+      if (errIn) issues.push({ componentId: component.id, type: 'error', message: errIn })
+      if (errOut) issues.push({ componentId: component.id, type: 'error', message: errOut })
+    }
+    if (component.type === 'tee') {
+      const rawIn = component.teeArmLengths?.inlet || component.armLength || 200
+      const rawOut = component.teeArmLengths?.outlet || component.armLength || 200
+      const rawBr = component.teeArmLengths?.branch || component.armLength || 200
+      const effIn = getEffectiveArmLength(rawIn, 'A', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+      const effOut = getEffectiveArmLength(rawOut, 'B', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+      const effBr = getEffectiveArmLength(rawBr, 'C', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+      const errIn = validateEffectiveLength(effIn, 'T-Stück Arm A')
+      const errOut = validateEffectiveLength(effOut, 'T-Stück Arm B')
+      const errBr = validateEffectiveLength(effBr, 'T-Stück Arm C')
+      if (errIn) issues.push({ componentId: component.id, type: 'error', message: errIn })
+      if (errOut) issues.push({ componentId: component.id, type: 'error', message: errOut })
+      if (errBr) issues.push({ componentId: component.id, type: 'error', message: errBr })
     }
 
     // Check DN compatibility for each connection

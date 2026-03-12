@@ -95,6 +95,8 @@ export interface PipeComponent {
   branchOffset?: number // Offset from center in mm (for asymmetric FFFT)
   branchAngle?: number // Angle of branch in degrees (for asymmetric FFFT, default 90°)
 
+  flangesIncludedInLength?: boolean // default: true — flanges are included in overall length
+
   price: number // in EUR
   material: MaterialType
   connectionPoints: ConnectionPoint[]
@@ -136,6 +138,8 @@ export interface ComponentTemplate {
   // Asymmetric T-piece defaults
   defaultBranchOffset?: number // in mm
   defaultBranchAngle?: number // in degrees
+
+  defaultFlangesIncludedInLength?: boolean // default: true
 
   basePrice: number // base price in EUR
   pricePerMM?: number // additional price per mm length

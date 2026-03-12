@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable'
 import { PipeComponent } from '../types'
 import { componentTemplates } from '../data/componentTemplates'
 import { downloadBlob, downloadText } from './downloadHelper'
+import { getEffectivePipeBodyLength, getEffectiveArmLength } from './flangeUtils'
 
 // Material display names (German)
 const MATERIAL_NAMES: Record<string, string> = {
@@ -45,16 +46,41 @@ const getComponentName = (component: PipeComponent): string => {
   return template?.name ?? component.type
 }
 
-/** Get the relevant length/dimension for a component */
+/** Get the relevant length/dimension for a component, with effective length annotation */
 const getComponentLength = (component: PipeComponent): string => {
+  const flangesIncluded = component.flangesIncludedInLength ?? true
+
   if (component.type === 'straight' && component.length) {
-    return component.length.toString()
+    const raw = component.length
+    const eff = getEffectivePipeBodyLength(raw, component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    if (flangesIncluded && eff !== raw) {
+      return `${raw} (Rohr: ${Math.round(eff)})`
+    }
+    return raw.toString()
   }
   if (component.elbowArmLengths) {
-    return `${component.elbowArmLengths.inlet}/${component.elbowArmLengths.outlet}`
+    const rawIn = component.elbowArmLengths.inlet
+    const rawOut = component.elbowArmLengths.outlet
+    const effIn = getEffectiveArmLength(rawIn, 'A', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    const effOut = getEffectiveArmLength(rawOut, 'B', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    const base = `${rawIn}/${rawOut}`
+    if (flangesIncluded && (effIn !== rawIn || effOut !== rawOut)) {
+      return `${base} (eff: ${Math.round(effIn)}/${Math.round(effOut)})`
+    }
+    return base
   }
   if (component.teeArmLengths) {
-    return `${component.teeArmLengths.inlet}/${component.teeArmLengths.outlet}/${component.teeArmLengths.branch}`
+    const rawIn = component.teeArmLengths.inlet
+    const rawOut = component.teeArmLengths.outlet
+    const rawBr = component.teeArmLengths.branch
+    const effIn = getEffectiveArmLength(rawIn, 'A', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    const effOut = getEffectiveArmLength(rawOut, 'B', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    const effBr = getEffectiveArmLength(rawBr, 'C', component.connectionPoints, component.dn, component.pn, flangesIncluded)
+    const base = `${rawIn}/${rawOut}/${rawBr}`
+    if (flangesIncluded && (effIn !== rawIn || effOut !== rawOut || effBr !== rawBr)) {
+      return `${base} (eff: ${Math.round(effIn)}/${Math.round(effOut)}/${Math.round(effBr)})`
+    }
+    return base
   }
   if (component.length) {
     return component.length.toString()

@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { Settings } from 'lucide-react'
-import { DNValue, PNValue } from '../../types'
+import { DNValue, PNValue, ConnectionMethod } from '../../types'
 import { componentTemplates, materialMultipliers } from '../../data/componentTemplates'
 
 interface ProjectSettingsDialogProps {
-  onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultPN: PNValue, defaultWallThickness: number) => void
+  onConfirm: (defaultMaterial: string, defaultDN: DNValue, defaultPN: PNValue, defaultWallThickness: number, defaultConnectionMethod: ConnectionMethod) => void
 }
 
 export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
@@ -14,6 +14,7 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
   const [selectedDN, setSelectedDN] = useState<DNValue>(50)
   const [selectedPN, setSelectedPN] = useState<PNValue>(16)
   const [selectedWallThickness, setSelectedWallThickness] = useState<number>(3)
+  const [selectedConnectionMethod, setSelectedConnectionMethod] = useState<ConnectionMethod>('welded')
 
   // Get all available DNs from the first template (they should be consistent)
   const availableDNs = componentTemplates[0]?.availableDNs || [20, 25, 32, 40, 50, 65, 80, 100, 125, 150]
@@ -32,7 +33,7 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
   }
 
   const handleConfirm = () => {
-    onConfirm(selectedMaterial, selectedDN, selectedPN, selectedWallThickness)
+    onConfirm(selectedMaterial, selectedDN, selectedPN, selectedWallThickness, selectedConnectionMethod)
   }
 
   return (
@@ -131,6 +132,38 @@ export const ProjectSettingsDialog: React.FC<ProjectSettingsDialogProps> = ({
             </select>
             <p className="text-xs text-gray-500 mt-2">
               Die Wandstärke beeinflusst Gewicht, Stabilität und Preis der Rohre
+            </p>
+          </div>
+
+          {/* Connection Method Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Standard-Verbindungsmethode
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedConnectionMethod('welded')}
+                className={`flex-1 px-4 py-3 text-sm rounded-lg font-medium transition-colors border-2 ${
+                  selectedConnectionMethod === 'welded'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                geschweißt
+              </button>
+              <button
+                onClick={() => setSelectedConnectionMethod('flanged')}
+                className={`flex-1 px-4 py-3 text-sm rounded-lg font-medium transition-colors border-2 ${
+                  selectedConnectionMethod === 'flanged'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                geflancht
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Legt fest, ob neue Komponenten standardmäßig geschweißt oder geflancht verbunden werden
             </p>
           </div>
 

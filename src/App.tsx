@@ -9,7 +9,7 @@ import { ProjectSettingsDialog } from './components/ui/ProjectSettingsDialog'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useCADStoreSync } from './hooks/useCADStoreSync'
 import { useConfiguratorStore } from './store/useConfiguratorStore'
-import { DNValue, PNValue } from './types'
+import { DNValue, PNValue, ConnectionMethod } from './types'
 
 function App() {
   useKeyboardShortcuts()
@@ -17,8 +17,8 @@ function App() {
 
   const projectSettings = useConfiguratorStore((state) => state.projectSettings)
   const setProjectSettings = useConfiguratorStore((state) => state.setProjectSettings)
-  const handleProjectSettings = (material: string, dn: DNValue, pn: PNValue, wallThickness: number) => {
-    setProjectSettings(material, dn, pn, wallThickness)
+  const handleProjectSettings = (material: string, dn: DNValue, pn: PNValue, wallThickness: number, connectionMethod: ConnectionMethod) => {
+    setProjectSettings(material, dn, pn, wallThickness, connectionMethod)
   }
 
   return (

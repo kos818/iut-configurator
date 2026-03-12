@@ -3,14 +3,14 @@ import { Vector3, Euler, Quaternion } from 'three'
 import { ChevronLeft } from 'lucide-react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { componentTemplates, componentGroupNames, ComponentGroup } from '../../data/componentTemplates'
-import { ComponentTemplate, DNValue, ConnectionPoint, PipeComponent, ConnectionMethod } from '../../types'
+import { ComponentTemplate, DNValue, PipeComponent, ConnectionMethod } from '../../types'
 import { ConnectionDialog } from './ConnectionDialog'
 import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
 // calculateConnectionRotation removed — using inline quaternion math for precision
 
 export const ComponentSelector: React.FC = () => {
   const addComponent = useConfiguratorStore((state) => state.addComponent)
-  const updateComponent = useConfiguratorStore((state) => state.updateComponent)
+  const addConnectedComponent = useConfiguratorStore((state) => state.addConnectedComponent)
   const components = useConfiguratorStore((state) => state.components)
   const selectedComponent = useConfiguratorStore((state) => state.selectedComponent)
   const quickAddConnectionPointId = useConfiguratorStore((state) => state.quickAddConnectionPointId)
@@ -106,27 +106,15 @@ export const ComponentSelector: React.FC = () => {
         const rotatedCPOffset = selectedCPPosition.clone().applyQuaternion(alignQuat)
         const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
 
-        const newComponentId = addComponent(templateWithDN, actualPosition)
-
-        const allComponents = useConfiguratorStore.getState().components
-        const newComponent = allComponents.find(c => c.id === newComponentId)
-
-        if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
-          const newCP = newComponent.connectionPoints[newComponentCPIndex]
-
-          updateComponent(newComponent.id, {
-            rotation,
-            connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
-              cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
-            )
-          })
-
-          updateComponent(targetComponent.id, {
-            connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
-              cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
-            )
-          })
-        }
+        addConnectedComponent(
+          templateWithDN,
+          actualPosition,
+          rotation,
+          newComponentCPIndex,
+          targetComponent.id,
+          targetCP.id,
+          connectionMethod || 'welded',
+        )
       }
     } else {
       const offset = components.length * 0.5

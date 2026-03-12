@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Vector3, Euler } from 'three'
-import { PipeComponent, ComponentTemplate, MaterialType, PNValue } from '../types'
+import { PipeComponent, ComponentTemplate, MaterialType, PNValue, ConnectionMethod } from '../types'
 import { materialMultipliers, pnMultipliers, componentTemplates } from '../data/componentTemplates'
 import { generateConnectionPoints } from '../utils/connectionHelpers'
 
@@ -95,16 +95,27 @@ interface ConfiguratorState {
   dialogSelectableConnectionPoints: string[] // Connection point IDs that can be selected in the dialog
   dialogSelectedConnectionPoint: string | null // Currently selected connection point in the dialog
   collisionWarnings: CollisionWarning[]
+  suppressNextCollisionDialog: boolean
   projectSettings: {
     isConfigured: boolean
     defaultMaterial: string
     defaultDN: number
     defaultPN: number
     defaultWallThickness: number
+    defaultConnectionMethod: ConnectionMethod
   }
 
   // Actions
   addComponent: (template: ComponentTemplate, position?: Vector3) => string
+  addConnectedComponent: (
+    template: ComponentTemplate,
+    position: Vector3,
+    rotation: Vector3,
+    newCPIndex: number,
+    targetComponentId: string,
+    targetCPId: string,
+    connectionMethod: ConnectionMethod,
+  ) => string
   removeComponent: (id: string) => void
   updateComponent: (id: string, updates: Partial<PipeComponent>) => void
   batchUpdateComponents: (updates: Array<{id: string, changes: Partial<PipeComponent>}>) => void
@@ -116,7 +127,7 @@ interface ConfiguratorState {
   setDialogSelectableConnectionPoints: (connectionPointIds: string[]) => void
   setDialogSelectedConnectionPoint: (connectionPointId: string | null) => void
   setCollisionWarnings: (warnings: CollisionWarning[]) => void
-  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number) => void
+  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number, connectionMethod: ConnectionMethod) => void
   calculateTotalPrice: () => void
   clearAll: () => void
   getProjectData: () => any
@@ -138,12 +149,14 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
   dialogSelectableConnectionPoints: [],
   dialogSelectedConnectionPoint: null,
   collisionWarnings: [],
+  suppressNextCollisionDialog: false,
   projectSettings: {
     isConfigured: false,
     defaultMaterial: 'steel',
     defaultDN: 50,
     defaultPN: 16,
     defaultWallThickness: 3,
+    defaultConnectionMethod: 'welded',
   },
 
   addComponent: (template: ComponentTemplate, position?: Vector3) => {
@@ -177,6 +190,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       branchDN: template.defaultBranchDN,
       branchOffset: template.defaultBranchOffset,
       branchAngle: template.defaultBranchAngle,
+      flangesIncludedInLength: template.defaultFlangesIncludedInLength ?? true,
       price: calculateComponentPrice({
         type: template.type,
         length: template.defaultLength,
@@ -190,10 +204,104 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
       validationMessages: [],
     }
 
-    // Generate connection points
-    newComponent.connectionPoints = generateConnectionPoints(newComponent)
+    // Generate connection points and apply project default connection method
+    newComponent.connectionPoints = generateConnectionPoints(newComponent).map(cp => ({
+      ...cp,
+      connectionMethod: projectSettings.isConfigured ? projectSettings.defaultConnectionMethod : undefined,
+    }))
 
     const newComponents = [...get().components, newComponent]
+
+    set((state) => ({
+      components: newComponents,
+      history: [...state.history.slice(0, state.historyIndex + 1), newComponents],
+      historyIndex: state.historyIndex + 1,
+      suppressNextCollisionDialog: true,
+    }))
+
+    get().calculateTotalPrice()
+    return newComponent.id
+  },
+
+  addConnectedComponent: (
+    template: ComponentTemplate,
+    position: Vector3,
+    rotation: Vector3,
+    newCPIndex: number,
+    targetComponentId: string,
+    targetCPId: string,
+    connectionMethod: ConnectionMethod,
+  ) => {
+    const { projectSettings, components } = get()
+
+    // Use project defaults if configured
+    const material = projectSettings.isConfigured ? (projectSettings.defaultMaterial as MaterialType) : template.material
+    const dn = projectSettings.isConfigured ? projectSettings.defaultDN as any : template.defaultDN
+    const pn = projectSettings.isConfigured ? projectSettings.defaultPN as PNValue : template.defaultPN
+    const wallThickness = projectSettings.isConfigured ? projectSettings.defaultWallThickness : template.defaultWallThickness
+
+    const newComponent: PipeComponent = {
+      id: `component-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: template.type,
+      position,
+      rotation,
+      dn,
+      pn,
+      wallThickness,
+      length: template.defaultLength,
+      angle: template.defaultAngle,
+      armLength: template.defaultArmLength,
+      teeArmLengths: template.defaultTeeArmLengths,
+      elbowArmLengths: template.defaultElbowArmLengths,
+      flangePosition: template.defaultFlangePosition,
+      branch1: template.defaultBranch1 ? { ...template.defaultBranch1, dn: template.defaultBranch1.dn || dn } as any : undefined,
+      branch2: template.defaultBranch2 ? { ...template.defaultBranch2, dn: template.defaultBranch2.dn || dn } as any : undefined,
+      bendRadius: template.defaultBendRadius,
+      inletDN: template.defaultInletDN,
+      outletDN: template.defaultOutletDN,
+      branchDN: template.defaultBranchDN,
+      branchOffset: template.defaultBranchOffset,
+      branchAngle: template.defaultBranchAngle,
+      flangesIncludedInLength: template.defaultFlangesIncludedInLength ?? true,
+      price: calculateComponentPrice({
+        type: template.type,
+        length: template.defaultLength,
+        wallThickness: template.defaultWallThickness,
+        material,
+        pn
+      }, template),
+      material,
+      connectionPoints: [],
+      isValid: true,
+      validationMessages: [],
+    }
+
+    // Generate connection points with project default connection method
+    newComponent.connectionPoints = generateConnectionPoints(newComponent).map(cp => ({
+      ...cp,
+      connectionMethod: projectSettings.isConfigured ? projectSettings.defaultConnectionMethod : undefined,
+    }))
+
+    // Mark both sides as connected
+    const newCP = newComponent.connectionPoints[newCPIndex] || newComponent.connectionPoints[0]
+    newComponent.connectionPoints = newComponent.connectionPoints.map(cp =>
+      cp.id === newCP.id ? { ...cp, connectedTo: targetCPId, connectionMethod } : cp
+    )
+
+    // Update target component's connection point
+    const updatedComponents = components.map(c => {
+      if (c.id === targetComponentId) {
+        return {
+          ...c,
+          connectionPoints: c.connectionPoints.map(cp =>
+            cp.id === targetCPId ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
+          ),
+        }
+      }
+      return c
+    })
+
+    const newComponents = [...updatedComponents, newComponent]
 
     set((state) => ({
       components: newComponents,
@@ -338,7 +446,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
     set({ collisionWarnings: warnings })
   },
 
-  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number) => {
+  setProjectSettings: (material: string, dn: number, pn: number, wallThickness: number, connectionMethod: ConnectionMethod) => {
     set({
       projectSettings: {
         isConfigured: true,
@@ -346,6 +454,7 @@ export const useConfiguratorStore = create<ConfiguratorState>((set, get) => ({
         defaultDN: dn,
         defaultPN: pn,
         defaultWallThickness: wallThickness,
+        defaultConnectionMethod: connectionMethod,
       },
     })
   },

@@ -6,6 +6,7 @@ import { componentTemplates, materialMultipliers } from '../../data/componentTem
 import { ConnectionMethod, ConnectionPoint, DNValue, PNValue } from '../../types'
 import { GlobalChangeDialog } from './GlobalChangeDialog'
 import { checkCollisions } from '../../utils/collisionDetection'
+import { getFlangeThickness, getEffectivePipeBodyLength, getEffectiveArmLength } from '../../utils/flangeUtils'
 
 export const PropertiesPanel: React.FC = () => {
   const components = useConfiguratorStore((state) => state.components)
@@ -52,6 +53,15 @@ export const PropertiesPanel: React.FC = () => {
   // Global collision check — runs whenever components change
   useEffect(() => {
     console.log(`[PropertiesPanel] Collision check triggered, ${components.length} components`)
+
+    // Skip entire collision check when suppress flag is set (atomic add just happened)
+    const suppress = useConfiguratorStore.getState().suppressNextCollisionDialog
+    if (suppress) {
+      console.log('[PropertiesPanel] Suppressing collision check for newly connected component')
+      useConfiguratorStore.setState({ suppressNextCollisionDialog: false })
+      return
+    }
+
     if (components.length < 2) {
       if (collisionWarnings.length > 0) setCollisionWarnings([])
       prevBlockedKeysRef.current = new Set()
@@ -178,7 +188,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ dn: newDN as DNValue })
             // Update project settings
-            setProjectSettings(projectSettings.defaultMaterial, newDN, projectSettings.defaultPN, projectSettings.defaultWallThickness)
+            setProjectSettings(projectSettings.defaultMaterial, newDN, projectSettings.defaultPN, projectSettings.defaultWallThickness, projectSettings.defaultConnectionMethod)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { dn: newDN as any })
@@ -325,7 +335,7 @@ export const PropertiesPanel: React.FC = () => {
             // Update all components
             updateAllComponents({ material: newMaterial })
             // Update project settings
-            setProjectSettings(newMaterial, projectSettings.defaultDN, projectSettings.defaultPN, projectSettings.defaultWallThickness)
+            setProjectSettings(newMaterial, projectSettings.defaultDN, projectSettings.defaultPN, projectSettings.defaultWallThickness, projectSettings.defaultConnectionMethod)
           } else {
             // Update only this component
             updateComponent(selectedComponent.id, { material: newMaterial })
@@ -672,6 +682,18 @@ export const PropertiesPanel: React.FC = () => {
               max="10000"
               step="100"
             />
+            {(() => {
+              const flangedCPs = selectedComponent.connectionPoints.filter((cp: ConnectionPoint) => cp.connectionMethod === 'flanged')
+              if (flangedCPs.length === 0 || !(selectedComponent.flangesIncludedInLength ?? true)) return null
+              const thickness = getFlangeThickness(selectedComponent.dn, selectedComponent.pn)
+              const deduction = flangedCPs.length * thickness
+              const effective = (selectedComponent.length || 1000) - deduction
+              return (
+                <div className="text-xs text-amber-400 mt-1">
+                  → Effektiv: {Math.round(effective)} mm ({flangedCPs.length}× Flansch à {thickness} mm)
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -692,6 +714,13 @@ export const PropertiesPanel: React.FC = () => {
                   max="1000"
                   step="50"
                 />
+                {(() => {
+                  const cpA = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'A')
+                  if (!cpA || cpA.connectionMethod !== 'flanged' || !(selectedComponent.flangesIncludedInLength ?? true)) return null
+                  const thickness = getFlangeThickness(selectedComponent.dn, selectedComponent.pn)
+                  const effective = (selectedComponent.teeArmLengths?.inlet || 156) - thickness
+                  return <div className="text-xs text-amber-400 mt-1">→ Effektiv: {Math.round(effective)} mm (-{thickness} mm Flansch)</div>
+                })()}
               </div>
               <div>
                 <label className="text-gray-400 text-xs block mb-1">Ausgang (B - rechts)</label>
@@ -704,6 +733,13 @@ export const PropertiesPanel: React.FC = () => {
                   max="1000"
                   step="50"
                 />
+                {(() => {
+                  const cpB = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'B')
+                  if (!cpB || cpB.connectionMethod !== 'flanged' || !(selectedComponent.flangesIncludedInLength ?? true)) return null
+                  const thickness = getFlangeThickness(selectedComponent.dn, selectedComponent.pn)
+                  const effective = (selectedComponent.teeArmLengths?.outlet || 156) - thickness
+                  return <div className="text-xs text-amber-400 mt-1">→ Effektiv: {Math.round(effective)} mm (-{thickness} mm Flansch)</div>
+                })()}
               </div>
               <div>
                 <label className="text-gray-400 text-xs block mb-1">Abzweigung (C - oben)</label>
@@ -716,6 +752,13 @@ export const PropertiesPanel: React.FC = () => {
                   max="1000"
                   step="50"
                 />
+                {(() => {
+                  const cpC = selectedComponent.connectionPoints.find((cp: ConnectionPoint) => cp.label === 'C')
+                  if (!cpC || cpC.connectionMethod !== 'flanged' || !(selectedComponent.flangesIncludedInLength ?? true)) return null
+                  const thickness = getFlangeThickness(selectedComponent.dn, selectedComponent.pn)
+                  const effective = (selectedComponent.teeArmLengths?.branch || 177) - thickness
+                  return <div className="text-xs text-amber-400 mt-1">→ Effektiv: {Math.round(effective)} mm (-{thickness} mm Flansch)</div>
+                })()}
               </div>
             </div>
           </div>
@@ -759,6 +802,104 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
 
+
+        {/* Flange-inclusive length toggle + breakdown */}
+        {(() => {
+          const flangedCPs = selectedComponent.connectionPoints.filter(
+            (cp: ConnectionPoint) => cp.connectionMethod === 'flanged'
+          )
+          if (flangedCPs.length === 0) return null
+
+          const flangesIncluded = selectedComponent.flangesIncludedInLength ?? true
+          const dn = selectedComponent.dn
+          const pn = selectedComponent.pn
+          const thickness = getFlangeThickness(dn, pn)
+
+          // Compute effective lengths and build breakdown
+          let breakdown: React.ReactNode = null
+          let validationWarning: string | null = null
+
+          if (selectedComponent.type === 'straight') {
+            const rawLength = selectedComponent.length || 1000
+            const effectiveLength = getEffectivePipeBodyLength(
+              rawLength, selectedComponent.connectionPoints, dn, pn, flangesIncluded
+            )
+            if (flangesIncluded && flangedCPs.length > 0) {
+              breakdown = (
+                <div className="text-xs text-gray-400 mt-2 font-mono">
+                  <div className="text-gray-300 mb-1">Längenaufstellung:</div>
+                  <div className="flex justify-between"><span>Gesamtlänge (Eingabe):</span><span>{rawLength} mm</span></div>
+                  <div className="flex justify-between"><span>Flansche ({flangedCPs.length}x {thickness} mm):</span><span>-{flangedCPs.length * thickness} mm</span></div>
+                  <div className="border-t border-gray-600 my-1" />
+                  <div className="flex justify-between font-semibold text-gray-200"><span>Effektive Rohrlänge:</span><span>{Math.round(effectiveLength)} mm</span></div>
+                </div>
+              )
+            }
+            if (effectiveLength < 50) {
+              validationWarning = `Effektive Rohrlänge (${Math.round(effectiveLength)} mm) ist zu kurz (min. 50 mm)`
+            }
+          } else if (selectedComponent.type === 'elbow') {
+            const rawInlet = selectedComponent.elbowArmLengths?.inlet || 150
+            const rawOutlet = selectedComponent.elbowArmLengths?.outlet || 150
+            const effInlet = getEffectiveArmLength(rawInlet, 'A', selectedComponent.connectionPoints, dn, pn, flangesIncluded)
+            const effOutlet = getEffectiveArmLength(rawOutlet, 'B', selectedComponent.connectionPoints, dn, pn, flangesIncluded)
+            const hasDeduction = effInlet !== rawInlet || effOutlet !== rawOutlet
+            if (flangesIncluded && hasDeduction) {
+              breakdown = (
+                <div className="text-xs text-gray-400 mt-2 font-mono">
+                  <div className="text-gray-300 mb-1">Schenkellängen (effektiv):</div>
+                  {effInlet !== rawInlet && <div className="flex justify-between"><span>A (Eingang):</span><span>{rawInlet} - {thickness} = {Math.round(effInlet)} mm</span></div>}
+                  {effOutlet !== rawOutlet && <div className="flex justify-between"><span>B (Ausgang):</span><span>{rawOutlet} - {thickness} = {Math.round(effOutlet)} mm</span></div>}
+                </div>
+              )
+            }
+            if (effInlet < 50) validationWarning = `Arm A: Effektive Länge (${Math.round(effInlet)} mm) zu kurz`
+            else if (effOutlet < 50) validationWarning = `Arm B: Effektive Länge (${Math.round(effOutlet)} mm) zu kurz`
+          } else if (selectedComponent.type === 'tee') {
+            const rawInlet = selectedComponent.teeArmLengths?.inlet || selectedComponent.armLength || 200
+            const rawOutlet = selectedComponent.teeArmLengths?.outlet || selectedComponent.armLength || 200
+            const rawBranch = selectedComponent.teeArmLengths?.branch || selectedComponent.armLength || 200
+            const effInlet = getEffectiveArmLength(rawInlet, 'A', selectedComponent.connectionPoints, dn, pn, flangesIncluded)
+            const effOutlet = getEffectiveArmLength(rawOutlet, 'B', selectedComponent.connectionPoints, dn, pn, flangesIncluded)
+            const effBranch = getEffectiveArmLength(rawBranch, 'C', selectedComponent.connectionPoints, dn, pn, flangesIncluded)
+            const hasDeduction = effInlet !== rawInlet || effOutlet !== rawOutlet || effBranch !== rawBranch
+            if (flangesIncluded && hasDeduction) {
+              breakdown = (
+                <div className="text-xs text-gray-400 mt-2 font-mono">
+                  <div className="text-gray-300 mb-1">Schenkellängen (effektiv):</div>
+                  {effInlet !== rawInlet && <div className="flex justify-between"><span>A (Eingang):</span><span>{rawInlet} - {thickness} = {Math.round(effInlet)} mm</span></div>}
+                  {effOutlet !== rawOutlet && <div className="flex justify-between"><span>B (Ausgang):</span><span>{rawOutlet} - {thickness} = {Math.round(effOutlet)} mm</span></div>}
+                  {effBranch !== rawBranch && <div className="flex justify-between"><span>C (Abzweigung):</span><span>{rawBranch} - {thickness} = {Math.round(effBranch)} mm</span></div>}
+                </div>
+              )
+            }
+            if (effInlet < 50) validationWarning = `Arm A: Effektive Länge (${Math.round(effInlet)} mm) zu kurz`
+            else if (effOutlet < 50) validationWarning = `Arm B: Effektive Länge (${Math.round(effOutlet)} mm) zu kurz`
+            else if (effBranch < 50) validationWarning = `Arm C: Effektive Länge (${Math.round(effBranch)} mm) zu kurz`
+          }
+
+          return (
+            <div>
+              <label className="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={flangesIncluded}
+                  onChange={(e) => updateComponent(selectedComponent.id, { flangesIncludedInLength: e.target.checked })}
+                  className="rounded"
+                  style={{ accentColor: '#0077C8' }}
+                />
+                Flansche in Gesamtlänge einbeziehen
+              </label>
+              {breakdown}
+              {validationWarning && (
+                <div className="flex items-center gap-1 mt-2 text-red-400 text-xs">
+                  <AlertTriangle size={12} />
+                  <span>{validationWarning}</span>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Rotation — one slider per connected opening */}
         {(() => {
@@ -849,54 +990,56 @@ export const PropertiesPanel: React.FC = () => {
                   <div className="text-xs text-gray-400">DN{cp.dn}</div>
                 </div>
 
-                {cp.connectedTo ? (
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-400 mb-1">Verbindungsmethode:</div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          handleConnectionMethodChange(cp.id, 'welded')
-                          setExpandedConnectionCP(null)
-                        }}
-                        className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
-                          cp.connectionMethod === 'welded'
-                            ? 'bg-blue-600 text-white font-semibold'
-                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                        }`}
-                      >
-                        geschweißt
-                      </button>
-                      <button
-                        onClick={() => setExpandedConnectionCP(expandedConnectionCP === cp.id ? null : cp.id)}
-                        className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
-                          cp.connectionMethod === 'flanged'
-                            ? 'bg-blue-600 text-white font-semibold'
-                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-                        }`}
-                      >
-                        Verbindung wählen
-                      </button>
-                    </div>
-                    {expandedConnectionCP === cp.id && (
-                      <div className="mt-2 space-y-1">
-                        {connectionTemplates.map((ct) => (
-                          <button
-                            key={ct.type}
-                            onClick={() => {
-                              handleConnectionMethodChange(cp.id, 'flanged')
-                              setExpandedConnectionCP(null)
-                            }}
-                            className="w-full text-left px-2 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-blue-600 hover:text-white transition-colors"
-                          >
-                            {ct.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                <div className="mt-2">
+                  <div className="text-xs text-gray-400 mb-1">Verbindungsmethode:</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        handleConnectionMethodChange(cp.id, 'welded')
+                        setExpandedConnectionCP(null)
+                      }}
+                      className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                        !cp.connectionMethod || cp.connectionMethod === 'welded'
+                          ? 'bg-blue-600 text-white font-semibold'
+                          : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                      }`}
+                    >
+                      geschweißt
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleConnectionMethodChange(cp.id, 'flanged')
+                        setExpandedConnectionCP(expandedConnectionCP === cp.id ? null : cp.id)
+                      }}
+                      className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
+                        cp.connectionMethod === 'flanged'
+                          ? 'bg-blue-600 text-white font-semibold'
+                          : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                      }`}
+                    >
+                      geflancht
+                    </button>
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 italic">Nicht verbunden</div>
-                )}
+                  {cp.connectedTo && cp.connectionMethod === 'flanged' && expandedConnectionCP === cp.id && (
+                    <div className="mt-2 space-y-1">
+                      {connectionTemplates.map((ct) => (
+                        <button
+                          key={ct.type}
+                          onClick={() => {
+                            handleConnectionMethodChange(cp.id, 'flanged')
+                            setExpandedConnectionCP(null)
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-xs rounded bg-gray-600 text-gray-200 hover:bg-blue-600 hover:text-white transition-colors"
+                        >
+                          {ct.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!cp.connectedTo && (
+                    <div className="text-xs text-gray-500 italic mt-1">Nicht verbunden</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { Vector3, Euler, Quaternion, CylinderGeometry } from 'three'
 import { PipeComponent, ConnectionPoint } from '../../types'
 import { getWorldPosition } from '../../utils/connectionHelpers'
+import { getFlangeThickness } from '../../utils/flangeUtils'
 import { CADMesh } from '../cad/CADMesh'
 
 interface ConnectionFlangeVisualizerProps {
@@ -43,9 +44,14 @@ const FlangeAtConnectionPoint: React.FC<{
 
   const pipeRadius = cp.dn / 2000
   const flangeRadius = pipeRadius * 2
-  const flangeThickness = pipeRadius * 0.4
+  const flangeThicknessMM = getFlangeThickness(cp.dn, component.pn)
+  const flangeThickness = flangeThicknessMM / 1000 // convert to meters for 3D
 
-  const flangeOffset = direction.clone().multiplyScalar(flangeThickness / 2)
+  const flangesIncluded = component.flangesIncludedInLength ?? true
+  // Only straight pipes use inward offset (flanges part of total length).
+  // For elbows/tees, arm lengths are physical geometry — flanges protrude outward.
+  const offsetSign = (component.type === 'straight' && flangesIncluded) ? -1 : 1
+  const flangeOffset = direction.clone().multiplyScalar(offsetSign * flangeThickness / 2)
   const flangePos = worldPos.clone().add(flangeOffset)
 
   const diskGeom = useMemo(

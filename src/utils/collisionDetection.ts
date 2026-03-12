@@ -97,28 +97,26 @@ export function buildCapsules(component: PipeComponent): Capsule[] {
     }
 
     case 'ffq_stueck': {
-      // Main pipe + branch
-      const halfLen = ((component.length || 500) / 2) / 1000
+      // Main body runs along Z-axis: CP A at [0,0,0] → CP B at [0,0,505]
+      const bodyLen = 505 / 1000  // 505mm in scene-unit scale
       capsules.push({
-        start: toWorld(new Vector3(0, -halfLen, 0), pos, rot),
-        end: toWorld(new Vector3(0, halfLen, 0), pos, rot),
+        start: toWorld(new Vector3(0, 0, 0), pos, rot),
+        end: toWorld(new Vector3(0, 0, bodyLen), pos, rot),
         radius,
         componentId: component.id,
       })
 
-      // Branch
-      if (component.branch1) {
-        const branchAngle = (component.branch1.angle * Math.PI) / 180
-        const branchLen = (component.branch1.length || 200) / 1000
-        const branchPos = (component.branch1.position || 0.5) * (component.length || 500) / 1000 - halfLen
-        const branchRadius = component.branch1.dn ? (component.branch1.dn / 2) / 1000 : radius
-        capsules.push({
-          start: toWorld(new Vector3(0, branchPos, 0), pos, rot),
-          end: toWorld(new Vector3(branchLen * Math.sin(branchAngle), branchPos + branchLen * Math.cos(branchAngle), 0), pos, rot),
-          radius: branchRadius,
-          componentId: component.id,
-        })
-      }
+      // Branch stub toward CP C at [0, -181.5, -152.5]
+      const branchEnd = new Vector3(0, -181.5 / 1000, -152.5 / 1000)
+      const branchRadius = component.branch1?.dn
+        ? (component.branch1.dn / 2) / 1000
+        : radius
+      capsules.push({
+        start: toWorld(new Vector3(0, 0, 0), pos, rot),
+        end: toWorld(branchEnd, pos, rot),
+        radius: branchRadius,
+        componentId: component.id,
+      })
       break
     }
 

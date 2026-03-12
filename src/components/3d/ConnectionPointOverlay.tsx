@@ -5,7 +5,7 @@ import { Vector3, Euler, Quaternion } from 'three'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { getWorldPosition, getWorldDirection, generateConnectionPoints } from '../../utils/connectionHelpers'
 import { QuickAddMenu } from '../ui/QuickAddMenu'
-import { ComponentTemplate, PipeComponent, ConnectionPoint, DNValue, ConnectionMethod } from '../../types'
+import { ComponentTemplate, PipeComponent, DNValue, ConnectionMethod } from '../../types'
 
 interface ScreenPosition {
   x: number
@@ -86,9 +86,9 @@ export const ConnectionPointPositionTracker: React.FC = () => {
 export const ConnectionPointUI: React.FC = () => {
   const [screenPositions, setScreenPositionsState] = useState<ScreenPosition[]>([])
   const [menuOpenForCP, setMenuOpenForCP] = useState<string | null>(null)
-  const addComponent = useConfiguratorStore((state) => state.addComponent)
-  const updateComponent = useConfiguratorStore((state) => state.updateComponent)
+  const addConnectedComponent = useConfiguratorStore((state) => state.addConnectedComponent)
   const components = useConfiguratorStore((state) => state.components)
+  const projectSettings = useConfiguratorStore((state) => state.projectSettings)
 
   useEffect(() => {
     const unsubscribe = subscribeToPositions(() => {
@@ -160,30 +160,16 @@ export const ConnectionPointUI: React.FC = () => {
     // Calculate the actual component position: target position minus the rotated CP offset
     const actualPosition = targetWorldPos.clone().sub(rotatedCPOffset)
 
-    // Add component at corrected position with calculated rotation
-    const newComponentId = addComponent(templateWithDN, actualPosition)
-
-    // Apply rotation and connections immediately (not in setTimeout to avoid timing issues)
-    const allComponents = useConfiguratorStore.getState().components
-    const newComponent = allComponents.find(c => c.id === newComponentId)
-
-    if (newComponent && newComponent.connectionPoints.length > newComponentCPIndex) {
-      const newCP = newComponent.connectionPoints[newComponentCPIndex]
-
-      // Apply rotation and mark both connection points as connected
-      updateComponent(newComponent.id, {
-        rotation,
-        connectionPoints: newComponent.connectionPoints.map((cp: ConnectionPoint) =>
-          cp.id === newCP.id ? { ...cp, connectedTo: targetCP.id, connectionMethod } : cp
-        )
-      })
-
-      updateComponent(targetComponent.id, {
-        connectionPoints: targetComponent.connectionPoints.map((cp: ConnectionPoint) =>
-          cp.id === targetCP.id ? { ...cp, connectedTo: newCP.id, connectionMethod } : cp
-        )
-      })
-    }
+    // Atomic add+connect: single store call so collision check only sees final connected state
+    addConnectedComponent(
+      templateWithDN,
+      actualPosition,
+      rotation,
+      newComponentCPIndex,
+      targetComponent.id,
+      targetCP.id,
+      connectionMethod,
+    )
 
     // Close the menu
     setMenuOpenForCP(null)
@@ -269,7 +255,16 @@ export const ConnectionPointUI: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <QuickAddMenu
                   onSelect={(template: ComponentTemplate) => {
-                    handleComponentSelect(template, pos.connectionPointId)
+                    // Resolve connection method: target CP's method > project default > 'welded'
+                    let resolvedMethod: ConnectionMethod = 'welded'
+                    for (const comp of components) {
+                      const cp = comp.connectionPoints.find(p => p.id === pos.connectionPointId)
+                      if (cp) {
+                        resolvedMethod = cp.connectionMethod || projectSettings.defaultConnectionMethod || 'welded'
+                        break
+                      }
+                    }
+                    handleComponentSelect(template, pos.connectionPointId, resolvedMethod)
                   }}
                   onClose={() => setMenuOpenForCP(null)}
                 />

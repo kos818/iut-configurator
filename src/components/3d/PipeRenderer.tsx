@@ -1,6 +1,7 @@
 import React from 'react'
 import { useConfiguratorStore } from '../../store/useConfiguratorStore'
 import { DN_TO_MM } from '../../types'
+import { getEffectivePipeBodyLength } from '../../utils/flangeUtils'
 import { StraightPipe } from './StraightPipe'
 import { ElbowPipe } from './ElbowPipe'
 import { TeePipe } from './TeePipe'
@@ -30,14 +31,19 @@ export const PipeRenderer: React.FC = () => {
         const selected = component.id === selectedComponent
 
         switch (component.type) {
-          case 'straight':
+          case 'straight': {
+            const rawLength = component.length || 1000
+            const effectiveBodyLength = getEffectivePipeBodyLength(
+              rawLength, component.connectionPoints, component.dn, component.pn,
+              component.flangesIncludedInLength ?? true
+            )
             return (
               <CADModelWrapper
                 key={component.id}
                 id={component.id}
                 type={component.type}
                 dn={component.dn}
-                length={component.length || 1000}
+                length={effectiveBodyLength}
                 position={position}
                 rotation={rotation}
                 material={component.material}
@@ -46,7 +52,7 @@ export const PipeRenderer: React.FC = () => {
                 <StraightPipe
                   id={component.id}
                   diameter={DN_TO_MM[component.dn]}
-                  length={component.length || 1000}
+                  length={effectiveBodyLength}
                   position={position}
                   rotation={rotation}
                   selected={selected}
@@ -54,15 +60,18 @@ export const PipeRenderer: React.FC = () => {
                 />
               </CADModelWrapper>
             )
+          }
           case 'elbow': {
             const elbowAngle = component.angle || 90
+            const effInlet = component.elbowArmLengths?.inlet || 150
+            const effOutlet = component.elbowArmLengths?.outlet || 150
             const elbowContent = (
               <ElbowPipe
                 id={component.id}
                 diameter={DN_TO_MM[component.dn]}
                 angle={elbowAngle}
-                inletLength={component.elbowArmLengths?.inlet}
-                outletLength={component.elbowArmLengths?.outlet}
+                inletLength={effInlet}
+                outletLength={effOutlet}
                 position={position}
                 rotation={rotation}
                 selected={selected}
@@ -88,7 +97,10 @@ export const PipeRenderer: React.FC = () => {
               </CADModelWrapper>
             )
           }
-          case 'tee':
+          case 'tee': {
+            const teeInlet = component.teeArmLengths?.inlet || component.armLength || 200
+            const teeOutlet = component.teeArmLengths?.outlet || component.armLength || 200
+            const teeBranch = component.teeArmLengths?.branch || component.armLength || 200
             return (
               <CADModelWrapper
                 key={component.id}
@@ -103,9 +115,9 @@ export const PipeRenderer: React.FC = () => {
                 <TeePipe
                   id={component.id}
                   diameter={DN_TO_MM[component.dn]}
-                  inletLength={component.teeArmLengths?.inlet || component.armLength || 200}
-                  outletLength={component.teeArmLengths?.outlet || component.armLength || 200}
-                  branchLength={component.teeArmLengths?.branch || component.armLength || 200}
+                  inletLength={teeInlet}
+                  outletLength={teeOutlet}
+                  branchLength={teeBranch}
                   branchAngle={component.branchAngle || 45}
                   position={position}
                   rotation={rotation}
@@ -114,6 +126,7 @@ export const PipeRenderer: React.FC = () => {
                 />
               </CADModelWrapper>
             )
+          }
           case 'glatter_flansch':
           case 'losflansch':
           case 'vorschweissboerdel':
